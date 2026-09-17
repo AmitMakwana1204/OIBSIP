@@ -506,7 +506,7 @@ export default function Home() {
       {/* =====================================================
           HOW IT WORKS
       ====================================================== */}
-      <section className="bg-red-600 py-16  text-white">
+      <section className="max-w-7xl mx-auto bg-gradient-to-r from-red-600 to-orange-500 rounded-[2rem] p-8 md:p-14 text-white relative overflow-hidden">
 
         <div className="max-w-7xl mx-auto px-6">
 

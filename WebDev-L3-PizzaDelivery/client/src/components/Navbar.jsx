@@ -98,14 +98,14 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
 
               {/* Search */}
-              <button
+              {/* <button
                 type="button"
                 onClick={handleSearch}
                 className="hidden sm:flex w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 items-center justify-center text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-100 transition"
                 aria-label="Search"
               >
                 <Search size={18} />
-              </button>
+              </button> */}
 
               {/* Cart */}
               <Link
