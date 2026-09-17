@@ -167,7 +167,7 @@ export default function AdminSidebar({
           </div>
 
           {/* Account */}
-
+{/* 
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-600 font-black px-4 pt-7 pb-3">
             Account
           </p>
@@ -182,7 +182,7 @@ export default function AdminSidebar({
               />
             ))}
 
-          </div>
+          </div> */}
 
           {/* =================================================
               HELP CARD
