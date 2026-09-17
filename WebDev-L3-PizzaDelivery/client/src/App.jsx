@@ -9,7 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import PizzaBuilder from "./pages/PizzaBuilder";
 import OrderSummary from "./pages/OrderSummary";
 import Orders from "./pages/Orders";
-
+import Cart from "./pages/Cart";
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -60,6 +60,10 @@ function App() {
           element={<Orders />}
         />
 
+        <Route
+          path="/cart"
+          element={<Cart />}
+        />
 
         {/* ================= ADMIN ROUTES ================= */}
 
