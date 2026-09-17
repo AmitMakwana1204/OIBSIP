@@ -43,7 +43,7 @@ export default function AdminSidebar({
     },
   ];
 
-  const accountLinks = [];
+  // const accountLinks = [];
 
   const handleLogout = () => {
     setLoggingOut(true);
