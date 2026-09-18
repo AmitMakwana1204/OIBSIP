@@ -10,6 +10,8 @@ import PizzaBuilder from "./pages/PizzaBuilder";
 import OrderSummary from "./pages/OrderSummary";
 import Orders from "./pages/Orders";
 import Cart from "./pages/Cart";
+import VerifyEmail from "./pages/VerifyEmail"; 
+
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -38,6 +40,11 @@ function App() {
         <Route
           path="/forgot-password"
           element={<ForgotPassword />}
+        />
+
+        <Route
+         path="/verify-email"
+         element={<VerifyEmail />} 
         />
 
         <Route
