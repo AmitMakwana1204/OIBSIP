@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Pizza,
   User,
@@ -12,13 +12,17 @@ import {
   Truck,
   Tag,
   CheckCircle2,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { registerUser } from "../services/api";
 
 export default function Register() {
-  const navigate = useNavigate();
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -34,25 +38,60 @@ export default function Register() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccessMessage("");
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
       return;
     }
 
     if (!agree) {
-      alert("Please accept the Terms & Conditions.");
+      setError("Please accept the Terms & Conditions.");
       return;
     }
 
-    console.log("Register Data:", formData);
+    setLoading(true);
 
-    // Backend registration will be connected here
-    navigate("/login");
+    try {
+      const response = await registerUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
+
+      setSuccessMessage(
+        response.data.message ||
+        "Registration successful! Please check your email to verify your account."
+      );
+
+      // Clear form
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+      setAgree(false);
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        "Registration failed. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -226,16 +265,16 @@ export default function Register() {
                 className="flex items-center gap-3"
               >
 
-                <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Pizza
-                    size={28}
-                    className="text-white"
-                  />
-                </div>
+              <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Pizza
+                  size={28}
+                  className="text-white"
+                />
+              </div>
 
-                <span className="text-3xl font-black">
-                  Pizza<span className="text-red-600">Hub</span>
-                </span>
+              <span className="text-3xl font-black">
+                Pizza<span className="text-red-600">Hub</span>
+              </span>
 
               </Link>
 
@@ -269,6 +308,34 @@ export default function Register() {
               </p>
 
             </div>
+
+
+            {/* SUCCESS MESSAGE */}
+            {successMessage && (
+              <div className="mb-5 p-4 bg-green-50 border border-green-100 rounded-2xl flex items-start gap-3">
+                <CheckCircle2
+                  size={19}
+                  className="text-green-500 shrink-0 mt-0.5"
+                />
+                <p className="text-sm text-green-700 font-medium">
+                  {successMessage}
+                </p>
+              </div>
+            )}
+
+
+            {/* ERROR MESSAGE */}
+            {error && (
+              <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
+                <AlertCircle
+                  size={19}
+                  className="text-red-500 shrink-0 mt-0.5"
+                />
+                <p className="text-sm text-red-600 font-medium">
+                  {error}
+                </p>
+              </div>
+            )}
 
 
             {/* FORM */}
@@ -461,15 +528,28 @@ export default function Register() {
               {/* CREATE ACCOUNT */}
               <button
                 type="submit"
-                className="group w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-red-200 hover:shadow-red-300 hover:-translate-y-0.5 transition-all duration-300"
+                disabled={loading}
+                className="group w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-red-200 hover:shadow-red-300 hover:-translate-y-0.5 transition-all duration-300"
               >
 
-                Create My Pizza Account
+                {loading ? (
+                  <>
+                    <Loader2
+                      size={20}
+                      className="animate-spin"
+                    />
+                    Creating Account...
+                  </>
+                ) : (
+                  <>
+                    Create My Pizza Account
 
-                <ArrowRight
-                  size={20}
-                  className="group-hover:translate-x-1 transition-transform"
-                />
+                    <ArrowRight
+                      size={20}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </>
+                )}
 
               </button>
 

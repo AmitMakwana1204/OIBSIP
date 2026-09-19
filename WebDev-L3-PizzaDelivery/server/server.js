@@ -8,6 +8,9 @@ const cors = require("cors");
 
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const inventoryRoutes = require("./routes/inventoryRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
@@ -22,7 +25,7 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "Pizza Delivery API is running 🚀",
+    message: "PizzaHub API is running 🚀",
   });
 });
 
@@ -31,8 +34,19 @@ app.get("/favicon.ico", (req, res) => {
   res.status(204).end();
 });
 
-// Authentication routes
+// Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/orders", orderRoutes);
+
+// 404 Handler for undefined routes
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Endpoint ${req.originalUrl} not found on server.`,
+  });
+});
 
 const PORT = process.env.PORT || 5000;
 

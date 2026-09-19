@@ -12,12 +12,19 @@ import {
   Star,
   Clock3,
   Tag,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { loginUser } from "../services/api";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     email: "",
@@ -29,15 +36,35 @@ export default function Login() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    console.log("Login Data:", formData);
+    try {
+      const response = await loginUser({
+        email: formData.email,
+        password: formData.password,
+      });
 
-    // Temporary navigation
-    navigate("/dashboard");
+      const { token, user } = response.data;
+
+      // Save auth state via context
+      login(user, token);
+
+      // Redirect to dashboard
+      navigate("/dashboard");
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        "Login failed. Please try again.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -219,16 +246,16 @@ export default function Login() {
                 className="flex items-center gap-3"
               >
 
-                <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Pizza
-                    size={28}
-                    className="text-white"
-                  />
-                </div>
+              <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Pizza
+                  size={28}
+                  className="text-white"
+                />
+              </div>
 
-                <span className="text-3xl font-black">
-                  Pizza<span className="text-red-600">Hub</span>
-                </span>
+              <span className="text-3xl font-black">
+                Pizza<span className="text-red-600">Hub</span>
+              </span>
 
               </Link>
 
@@ -260,6 +287,20 @@ export default function Login() {
               </p>
 
             </div>
+
+
+            {/* ERROR MESSAGE */}
+            {error && (
+              <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3">
+                <AlertCircle
+                  size={19}
+                  className="text-red-500 shrink-0 mt-0.5"
+                />
+                <p className="text-sm text-red-600 font-medium">
+                  {error}
+                </p>
+              </div>
+            )}
 
 
             {/* LOGIN FORM */}
@@ -375,15 +416,28 @@ export default function Login() {
               {/* LOGIN BUTTON */}
               <button
                 type="submit"
-                className="group w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-xl shadow-red-200 hover:shadow-red-300 hover:-translate-y-0.5 transition-all duration-300"
+                disabled={loading}
+                className="group w-full py-4 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-2xl font-black text-base flex items-center justify-center gap-2 shadow-xl shadow-red-200 hover:shadow-red-300 hover:-translate-y-0.5 transition-all duration-300"
               >
 
-                Login & Start Ordering
+                {loading ? (
+                  <>
+                    <Loader2
+                      size={20}
+                      className="animate-spin"
+                    />
+                    Logging in...
+                  </>
+                ) : (
+                  <>
+                    Login & Start Ordering
 
-                <ArrowRight
-                  size={20}
-                  className="group-hover:translate-x-1 transition-transform"
-                />
+                    <ArrowRight
+                      size={20}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
+                  </>
+                )}
 
               </button>
 

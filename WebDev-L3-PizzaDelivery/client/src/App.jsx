@@ -1,10 +1,16 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+// Auth
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+
 // User Pages
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import PizzaBuilder from "./pages/PizzaBuilder";
 import OrderSummary from "./pages/OrderSummary";
@@ -21,80 +27,121 @@ import AdminOrders from "./pages/admin/AdminOrders";
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
 
-        {/* ================= USER ROUTES ================= */}
+          {/* ================= PUBLIC ROUTES ================= */}
 
-        <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home />} />
 
-        <Route
-          path="/login"
-          element={<Login />}
-        />
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
+          <Route
+            path="/register"
+            element={<Register />}
+          />
 
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
+          <Route
+            path="/forgot-password"
+            element={<ForgotPassword />}
+          />
 
-        <Route
-         path="/verify-email"
-         element={<VerifyEmail />} 
-        />
+          <Route
+            path="/reset-password/:token"
+            element={<ResetPassword />}
+          />
 
-        <Route
-          path="/dashboard"
-          element={<Dashboard />}
-        />
+          <Route
+           path="/verify-email"
+           element={<VerifyEmail />} 
+          />
 
-        <Route
-          path="/pizza-builder"
-          element={<PizzaBuilder />}
-        />
+          {/* ================= PROTECTED USER ROUTES ================= */}
 
-        <Route
-          path="/order-summary"
-          element={<OrderSummary />}
-        />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/orders"
-          element={<Orders />}
-        />
+          <Route
+            path="/pizza-builder"
+            element={
+              <ProtectedRoute>
+                <PizzaBuilder />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/cart"
-          element={<Cart />}
-        />
+          <Route
+            path="/order-summary"
+            element={
+              <ProtectedRoute>
+                <OrderSummary />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* ================= ADMIN ROUTES ================= */}
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <Orders />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/admin/login"
-          element={<AdminLogin />}
-        />
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoute>
+                <Cart />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/admin/dashboard"
-          element={<AdminDashboard />}
-        />
+          {/* ================= ADMIN ROUTES ================= */}
 
-        <Route
-          path="/admin/inventory"
-          element={<Inventory />}
-        />
+          <Route
+            path="/admin/login"
+            element={<AdminLogin />}
+          />
 
-        <Route
-          path="/admin/orders"
-          element={<AdminOrders />}
-        />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboard />
+              </AdminProtectedRoute>
+            }
+          />
 
-      </Routes>
+          <Route
+            path="/admin/inventory"
+            element={
+              <AdminProtectedRoute>
+                <Inventory />
+              </AdminProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/orders"
+            element={
+              <AdminProtectedRoute>
+                <AdminOrders />
+              </AdminProtectedRoute>
+            }
+          />
+
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

@@ -1,33 +1,63 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
-  Mail,
   Pizza,
-  ArrowLeft,
+  Lock,
+  Eye,
+  EyeOff,
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  Tag,
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { forgotPasswordRequest } from "../services/api";
+import { resetPasswordRequest } from "../services/api";
 
-export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+export default function ResetPassword() {
+  const { token } = useParams();
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const [formData, setFormData] = useState({
+    password: "",
+    confirmPassword: "",
+  });
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+    setError("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await forgotPasswordRequest({ email });
+      await resetPasswordRequest(token, {
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
 
-      setSubmitted(true);
+      setSuccess(true);
     } catch (err) {
       const message =
         err.response?.data?.message ||
@@ -85,7 +115,7 @@ export default function ForgotPassword() {
 
               <div className="w-20 h-20 bg-white/15 backdrop-blur-md border border-white/20 rounded-3xl flex items-center justify-center mb-7">
 
-                <Mail
+                <Lock
                   size={38}
                   className="text-white"
                 />
@@ -93,22 +123,21 @@ export default function ForgotPassword() {
               </div>
 
               <h1 className="text-5xl font-black leading-tight">
-                Don't worry,
+                Create a new
                 <br />
 
                 <span className="text-orange-200">
-                  we've got you.
+                  password.
                 </span>
               </h1>
 
               <p className="text-red-100 text-lg leading-relaxed mt-6 max-w-md">
-                Forgot your password? No problem. Enter your
-                email and we'll help you get back to your
-                PizzaHub account.
+                Choose a strong password to keep your PizzaHub
+                account safe and secure.
               </p>
 
 
-              {/* BENEFITS */}
+              {/* TIPS */}
               <div className="mt-9 space-y-4">
 
                 <div className="flex items-center gap-3">
@@ -118,7 +147,7 @@ export default function ForgotPassword() {
                   </div>
 
                   <span className="text-sm font-semibold">
-                    Secure password recovery
+                    Use at least 6 characters
                   </span>
 
                 </div>
@@ -127,11 +156,11 @@ export default function ForgotPassword() {
                 <div className="flex items-center gap-3">
 
                   <div className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center">
-                    <Pizza size={18} />
+                    <Lock size={18} />
                   </div>
 
                   <span className="text-sm font-semibold">
-                    Get back to ordering your favorites
+                    Mix letters, numbers & symbols
                   </span>
 
                 </div>
@@ -181,14 +210,14 @@ export default function ForgotPassword() {
             </div>
 
 
-            {!submitted ? (
+            {!success ? (
               <>
                 {/* HEADER */}
                 <div className="text-center mb-8">
 
                   <div className="mx-auto w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-5">
 
-                    <Mail
+                    <Lock
                       size={29}
                       className="text-red-600"
                     />
@@ -196,16 +225,16 @@ export default function ForgotPassword() {
                   </div>
 
                   <p className="text-red-600 text-sm font-black uppercase tracking-wider">
-                    Account Recovery
+                    Password Reset
                   </p>
 
                   <h1 className="text-4xl font-black text-gray-900 mt-2">
-                    Forgot Password?
+                    Create New Password
                   </h1>
 
                   <p className="text-gray-500 mt-3 leading-relaxed">
-                    No worries. Enter the email address linked
-                    to your PizzaHub account.
+                    Enter your new password below to reset your
+                    PizzaHub account password.
                   </p>
 
                 </div>
@@ -231,37 +260,95 @@ export default function ForgotPassword() {
                   className="space-y-5"
                 >
 
+                  {/* NEW PASSWORD */}
                   <div>
 
                     <label className="block text-sm font-bold text-gray-800 mb-2">
-                      Email Address
+                      New Password
                     </label>
 
                     <div className="relative">
 
-                      <Mail
+                      <Lock
                         size={19}
                         className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                       />
 
                       <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          setError("");
-                        }}
-                        placeholder="Enter your email"
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder="Enter new password"
                         required
-                        className="w-full pl-12 pr-4 py-4 rounded-2xl border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 transition"
+                        minLength={6}
+                        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 transition"
                       />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPassword(!showPassword)
+                        }
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition"
+                      >
+                        {showPassword ? (
+                          <EyeOff size={19} />
+                        ) : (
+                          <Eye size={19} />
+                        )}
+                      </button>
 
                     </div>
 
                   </div>
 
 
-                  {/* BUTTON */}
+                  {/* CONFIRM PASSWORD */}
+                  <div>
+
+                    <label className="block text-sm font-bold text-gray-800 mb-2">
+                      Confirm New Password
+                    </label>
+
+                    <div className="relative">
+
+                      <Lock
+                        size={19}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        placeholder="Confirm new password"
+                        required
+                        minLength={6}
+                        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-gray-200 bg-gray-50 focus:bg-white outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100 transition"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff size={19} />
+                        ) : (
+                          <Eye size={19} />
+                        )}
+                      </button>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* SUBMIT */}
                   <button
                     type="submit"
                     disabled={loading}
@@ -271,14 +358,14 @@ export default function ForgotPassword() {
                     {loading ? (
                       <>
                         <Loader2
-                          size={19}
+                          size={20}
                           className="animate-spin"
                         />
-                        Sending...
+                        Resetting Password...
                       </>
                     ) : (
                       <>
-                        Send Reset Link
+                        Reset Password
 
                         <ArrowRight
                           size={19}
@@ -292,45 +379,13 @@ export default function ForgotPassword() {
                 </form>
 
 
-                {/* BACK LOGIN */}
-                <Link
-                  to="/login"
-                  className="mt-7 flex items-center justify-center gap-2 text-red-600 font-bold text-sm hover:text-red-700 transition"
-                >
-                  <ArrowLeft size={17} />
-                  Back to Login
-                </Link>
-
-
-                {/* OFFER */}
-                <div className="mt-8 bg-orange-50 border border-orange-100 rounded-2xl p-4 flex items-center gap-3">
-
-                  <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0">
-                    <Tag size={19} />
-                  </div>
-
-                  <div>
-
-                    <p className="font-black text-gray-900 text-sm">
-                      Almost back to your pizza!
-                    </p>
-
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Recover your account and check today's deals.
-                    </p>
-
-                  </div>
-
-                </div>
-
-
                 {/* SECURITY */}
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-7">
 
                   <ShieldCheck size={15} />
 
                   <span>
-                    Your account information is secure
+                    Secure PizzaHub password reset
                   </span>
 
                 </div>
@@ -353,50 +408,31 @@ export default function ForgotPassword() {
                 </div>
 
                 <p className="text-green-600 text-sm font-black uppercase tracking-wider">
-                  Email Sent
+                  Success
                 </p>
 
                 <h1 className="text-4xl font-black text-gray-900 mt-2">
-                  Check your inbox
+                  Password Reset Successfully
                 </h1>
 
                 <p className="text-gray-500 mt-4 leading-relaxed">
-                  If an account exists for{" "}
-                  <span className="font-bold text-gray-800">
-                    {email}
-                  </span>
-                  , we've sent instructions to reset your password.
+                  Your password has been updated. You can now
+                  log in with your new password.
                 </p>
-
-
-                {/* INFO BOX */}
-                <div className="mt-7 bg-gray-50 border border-gray-100 rounded-2xl p-5 text-left">
-
-                  <p className="font-bold text-gray-800 text-sm">
-                    Didn't receive the email?
-                  </p>
-
-                  <ul className="text-sm text-gray-500 mt-3 space-y-2">
-                    <li>• Check your spam or junk folder.</li>
-                    <li>• Make sure your email address is correct.</li>
-                    <li>• Wait a few minutes and try again.</li>
-                  </ul>
-
-                </div>
 
 
                 <Link
                   to="/login"
                   className="mt-7 w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-lg shadow-red-200 transition"
                 >
-                  Back to Login
+                  Go to Login
                   <ArrowRight size={19} />
                 </Link>
 
 
                 <p className="text-xs text-gray-400 mt-6 flex items-center justify-center gap-2">
                   <ShieldCheck size={15} />
-                  Secure PizzaHub account recovery
+                  Your account is now secure
                 </p>
 
               </div>
