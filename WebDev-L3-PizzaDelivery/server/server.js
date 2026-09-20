@@ -11,6 +11,9 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const pizzaRoutes = require("./routes/pizzaRoutes");
+const ingredientRoutes =
+  require("./routes/ingredientRoutes");
 
 const app = express();
 
@@ -39,7 +42,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/orders", orderRoutes);
-
+app.use("/api/pizzas", pizzaRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 // 404 Handler for undefined routes
 app.use((req, res) => {
   res.status(404).json({

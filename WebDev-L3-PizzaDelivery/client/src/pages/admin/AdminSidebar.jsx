@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+
 import {
   LayoutDashboard,
   Package,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   CircleHelp,
   Activity,
+  UtensilsCrossed,
 } from "lucide-react";
 
 export default function AdminSidebar({
@@ -17,23 +19,41 @@ export default function AdminSidebar({
   setMobileOpen,
 }) {
   const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [adminUser, setAdminUser] = useState({
-    name: "Admin",
-    email: "admin@pizzahub.com",
-    role: "admin",
-  });
+
+  const [loggingOut, setLoggingOut] =
+    useState(false);
+
+  const [adminUser, setAdminUser] =
+    useState({
+      name: "Admin",
+      email: "admin@pizzahub.com",
+      role: "admin",
+    });
+
+  /* =====================================================
+     LOAD ADMIN USER
+  ===================================================== */
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("pizzahub_admin_user");
+      const stored = localStorage.getItem(
+        "pizzahub_admin_user"
+      );
+
       if (stored) {
         setAdminUser(JSON.parse(stored));
       }
     } catch (e) {
-      console.error(e);
+      console.error(
+        "Admin user loading error:",
+        e
+      );
     }
   }, []);
+
+  /* =====================================================
+     MAIN LINKS
+  ===================================================== */
 
   const mainLinks = [
     {
@@ -42,9 +62,19 @@ export default function AdminSidebar({
       icon: LayoutDashboard,
     },
     {
+      name: "Menu",
+      path: "/admin/menu",
+      icon: Pizza,
+    },
+    {
       name: "Inventory",
       path: "/admin/inventory",
       icon: Package,
+    },
+    {
+      name: "Ingredients",
+      path: "/admin/ingredients",
+      icon: UtensilsCrossed,
     },
     {
       name: "Orders",
@@ -53,24 +83,45 @@ export default function AdminSidebar({
     },
   ];
 
+  /* =====================================================
+     LOGOUT
+  ===================================================== */
+
   const handleLogout = () => {
     setLoggingOut(true);
-    localStorage.removeItem("pizzahub_admin_token");
-    localStorage.removeItem("pizzahub_admin_user");
+
+    localStorage.removeItem(
+      "pizzahub_admin_token"
+    );
+
+    localStorage.removeItem(
+      "pizzahub_admin_user"
+    );
 
     setTimeout(() => {
       navigate("/admin/login");
     }, 200);
   };
 
+  /* =====================================================
+     INITIAL
+  ===================================================== */
+
+  const adminInitial =
+    adminUser.name?.charAt(0)?.toUpperCase() ||
+    "A";
+
   return (
     <>
       {/* =====================================================
           MOBILE OVERLAY
       ===================================================== */}
+
       {mobileOpen && (
         <div
-          onClick={() => setMobileOpen(false)}
+          onClick={() =>
+            setMobileOpen(false)
+          }
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
         />
       )}
@@ -78,6 +129,7 @@ export default function AdminSidebar({
       {/* =====================================================
           SIDEBAR
       ===================================================== */}
+
       <aside
         className={`
           fixed lg:sticky
@@ -103,59 +155,86 @@ export default function AdminSidebar({
           }
         `}
       >
+
         {/* =================================================
             LOGO
         ================================================= */}
+
         <div className="h-20 px-5 flex items-center justify-between border-b border-gray-800/80">
+
           <div className="flex items-center gap-3">
+
             <div className="relative">
+
               <div className="w-11 h-11 rounded-2xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-950/40">
                 <Pizza size={23} />
               </div>
+
               <span className="absolute -right-1 -bottom-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-gray-950" />
+
             </div>
 
             <div>
+
               <h1 className="font-black text-xl tracking-tight">
-                Pizza<span className="text-red-500">Hub</span>
+                Pizza
+                <span className="text-red-500">
+                  Hub
+                </span>
               </h1>
+
               <p className="text-[9px] uppercase tracking-[0.22em] text-gray-500 font-bold">
                 Admin Console
               </p>
+
             </div>
+
           </div>
 
           {/* Mobile Close */}
+
           <button
-            onClick={() => setMobileOpen(false)}
+            type="button"
+            onClick={() =>
+              setMobileOpen(false)
+            }
             className="lg:hidden w-9 h-9 rounded-xl bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800 flex items-center justify-center transition"
           >
             <X size={19} />
           </button>
+
         </div>
 
         {/* =================================================
             NAVIGATION
         ================================================= */}
+
         <nav className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-600 font-black px-4 py-3">
             Management
           </p>
 
           <div className="space-y-1.5">
+
             {mainLinks.map((link) => (
               <SidebarLink
                 key={link.path}
                 link={link}
-                setMobileOpen={setMobileOpen}
+                setMobileOpen={
+                  setMobileOpen
+                }
               />
             ))}
+
           </div>
 
           {/* =================================================
               HELP CARD
           ================================================= */}
+
           <div className="mt-8 p-4 rounded-2xl bg-gradient-to-br from-gray-900 to-gray-900/50 border border-gray-800">
+
             <div className="w-9 h-9 rounded-xl bg-red-600/10 text-red-500 flex items-center justify-center mb-3">
               <CircleHelp size={18} />
             </div>
@@ -165,66 +244,105 @@ export default function AdminSidebar({
             </p>
 
             <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-              Database-driven management system connected to MongoDB.
+              Database-driven management
+              system connected to MongoDB.
             </p>
+
           </div>
+
         </nav>
 
         {/* =================================================
             SYSTEM STATUS
         ================================================= */}
+
         <div className="px-4 pb-3">
+
           <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-900 border border-gray-800">
+
             <div className="flex items-center gap-2">
+
               <span className="relative flex h-2.5 w-2.5">
+
                 <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60 animate-ping" />
+
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+
               </span>
+
               <span className="text-xs font-semibold text-gray-400">
                 Database Connected
               </span>
+
             </div>
-            <Activity size={14} className="text-green-500" />
+
+            <Activity
+              size={14}
+              className="text-green-500"
+            />
+
           </div>
+
         </div>
 
         {/* =================================================
             ADMIN PROFILE
         ================================================= */}
+
         <div className="p-4 border-t border-gray-800">
+
           <div className="flex items-center gap-3 p-2 mb-2 rounded-xl hover:bg-gray-900 transition">
+
             <div className="relative">
+
               <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-black uppercase">
-                {adminUser.name ? adminUser.name[0] : "A"}
+                {adminInitial}
               </div>
+
               <span className="absolute -right-0.5 -bottom-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-gray-950" />
+
             </div>
 
             <div className="min-w-0 flex-1">
+
               <p className="font-bold text-sm truncate">
-                {adminUser.name || "Admin"}
+                {adminUser.name ||
+                  "Admin"}
               </p>
+
               <p className="text-[11px] text-gray-500 truncate">
-                {adminUser.email || "admin@pizzahub.com"}
+                {adminUser.email ||
+                  "admin@pizzahub.com"}
               </p>
+
             </div>
+
           </div>
 
           {/* Logout */}
+
           <button
+            type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-950/40 hover:text-red-400 transition group"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-950/40 hover:text-red-400 transition group disabled:opacity-60"
           >
+
             <LogOut
               size={18}
               className="group-hover:translate-x-0.5 transition"
             />
+
             <span className="text-sm font-semibold">
-              {loggingOut ? "Logging out..." : "Logout"}
+              {loggingOut
+                ? "Logging out..."
+                : "Logout"}
             </span>
+
           </button>
+
         </div>
+
       </aside>
     </>
   );
@@ -233,6 +351,7 @@ export default function AdminSidebar({
 /* =========================================================
    SIDEBAR LINK
 ========================================================= */
+
 function SidebarLink({
   link,
   setMobileOpen,
@@ -242,7 +361,9 @@ function SidebarLink({
   return (
     <NavLink
       to={link.path}
-      onClick={() => setMobileOpen(false)}
+      onClick={() =>
+        setMobileOpen(false)
+      }
       className={({ isActive }) => `
         group
         relative
@@ -265,9 +386,13 @@ function SidebarLink({
     >
       {({ isActive }) => (
         <>
+          {/* Active Indicator */}
+
           {isActive && (
             <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-white" />
           )}
+
+          {/* Icon */}
 
           <div
             className={`
@@ -288,9 +413,13 @@ function SidebarLink({
             <Icon size={18} />
           </div>
 
+          {/* Name */}
+
           <span className="flex-1">
             {link.name}
           </span>
+
+          {/* Arrow */}
 
           <ChevronRight
             size={14}

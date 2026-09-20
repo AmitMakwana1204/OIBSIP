@@ -23,6 +23,8 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Inventory from "./pages/admin/Inventory";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminIngredients from "./pages/admin/AdminIngredients"; 
+import AdminPizzas from "./pages/admin/AdminPizzas";
 
 function App() {
   return (
@@ -140,6 +142,22 @@ function App() {
             }
           />
 
+          <Route
+            path="/admin/ingredients"
+            element={
+              <AdminProtectedRoute>
+                <AdminIngredients />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/menu"
+            element={
+              <AdminProtectedRoute>
+                <AdminPizzas />
+              </AdminProtectedRoute>
+            }
+          />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

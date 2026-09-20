@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
   ArrowRight,
   Clock3,
   Flame,
   Search,
-  Heart,
   MapPin,
   ShoppingBag,
   Tag,
@@ -17,97 +17,12 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PizzaCard from "../components/PizzaCard";
 
-
 // =========================================================
-// PIZZA DATA
+// API
 // =========================================================
 
-const pizzas = [
-  {
-    id: 1,
-    name: "Margherita",
-    category: "Classic",
-    price: 199,
-    oldPrice: 249,
-    rating: 4.8,
-    reviews: 124,
-    image:
-      "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800",
-    tag: "BEST SELLER",
-    description: "Classic tomato, mozzarella & fresh basil",
-  },
-
-  {
-    id: 2,
-    name: "Farmhouse",
-    category: "Veg",
-    price: 299,
-    oldPrice: 349,
-    rating: 4.9,
-    reviews: 186,
-    image:
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800",
-    tag: "POPULAR",
-    description: "Loaded with fresh vegetables & cheese",
-  },
-
-  {
-    id: 3,
-    name: "Veggie Supreme",
-    category: "Loaded",
-    price: 329,
-    oldPrice: 399,
-    rating: 4.7,
-    reviews: 98,
-    image:
-      "https://images.unsplash.com/photo-1579751626657-72bc17010498?w=800",
-    tag: "LOADED",
-    description: "A delicious mix of veggies & premium cheese",
-  },
-
-  {
-    id: 4,
-    name: "Pepperoni",
-    category: "Spicy",
-    price: 349,
-    oldPrice: 399,
-    rating: 4.9,
-    reviews: 215,
-    image:
-      "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=800",
-    tag: "HOT",
-    description: "Spicy pepperoni with extra mozzarella",
-  },
-
-  {
-    id: 5,
-    name: "Cheese Burst",
-    category: "Cheesy",
-    price: 379,
-    oldPrice: 449,
-    rating: 4.8,
-    reviews: 167,
-    image:
-      "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?w=800",
-    tag: "CHEESY",
-    description: "Rich cheese burst with a crispy crust",
-  },
-
-  {
-    id: 6,
-    name: "Mexican Green Wave",
-    category: "Mexican",
-    price: 299,
-    oldPrice: 349,
-    rating: 4.6,
-    reviews: 83,
-    image:
-      "https://images.unsplash.com/photo-1594007654729-407eedc4be65?w=800",
-    tag: "SPICY",
-    description: "Mexican flavors with fresh veggies & jalapeños",
-  },
-];
-
+const API_URL = "http://localhost:5000/api/pizzas";
+const CART_KEY = "pizzaCart";
 
 // =========================================================
 // CATEGORIES
@@ -123,167 +38,311 @@ const categories = [
   "Mexican",
 ];
 
-
 // =========================================================
 // DASHBOARD
 // =========================================================
 
 export default function Dashboard() {
+  // =======================================================
+  // SEARCH & CATEGORY
+  // =======================================================
 
   const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
 
-  const [activeCategory, setActiveCategory] =
-    useState("All");
+  // =======================================================
+  // PIZZA STATE
+  // =======================================================
 
+  const [pizzas, setPizzas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   // =======================================================
   // CART STATE
   // =======================================================
 
   const [cart, setCart] = useState(() => {
-
     try {
+      const savedCart = localStorage.getItem(CART_KEY);
 
-      const savedCart =
-        localStorage.getItem("pizzaCart");
+      if (!savedCart) {
+        return [];
+      }
 
-      return savedCart
-        ? JSON.parse(savedCart)
-        : [];
+      const parsedCart = JSON.parse(savedCart);
 
+      if (!Array.isArray(parsedCart)) {
+        return [];
+      }
+
+      return parsedCart.map((item) => ({
+        ...item,
+
+        // Always maintain one common ID
+        id: String(item.id || item._id || ""),
+
+        quantity:
+          Number(item.quantity) > 0
+            ? Number(item.quantity)
+            : 1,
+
+        price: Number(item.price) || 0,
+      }));
     } catch (error) {
-
-      console.error(
-        "Cart loading error:",
-        error
-      );
-
+      console.error("Cart loading error:", error);
       return [];
     }
   });
 
+  // =======================================================
+  // FETCH PIZZAS FROM MONGODB
+  // =======================================================
+
+  useEffect(() => {
+    const fetchPizzas = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await fetch(API_URL);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || "Failed to fetch pizzas"
+          );
+        }
+
+        setPizzas(
+          Array.isArray(data.pizzas)
+            ? data.pizzas
+            : []
+        );
+      } catch (error) {
+        console.error("Pizza fetch error:", error);
+
+        setError(
+          "Unable to load pizzas. Please make sure the backend server is running."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPizzas();
+  }, []);
+
+  // =======================================================
+  // SAVE CART
+  // =======================================================
+
+  useEffect(() => {
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify(cart)
+    );
+
+    // Notify Navbar / other components
+    window.dispatchEvent(
+      new Event("cartUpdated")
+    );
+  }, [cart]);
 
   // =======================================================
   // ADD TO CART
   // =======================================================
 
   const handleAddToCart = (pizza) => {
-
-    setCart((currentCart) => {
-
-      const existingPizza =
-        currentCart.find(
-          (item) => item.id === pizza.id
-        );
-
-
-      let updatedCart;
-
-
-      if (existingPizza) {
-
-        updatedCart = currentCart.map(
-          (item) =>
-            item.id === pizza.id
-              ? {
-                  ...item,
-                  quantity:
-                    item.quantity + 1,
-                }
-              : item
-        );
-
-      } else {
-
-        updatedCart = [
-          ...currentCart,
-          {
-            ...pizza,
-            quantity: 1,
-          },
-        ];
-
+    try {
+      if (!pizza) {
+        console.error("Pizza data missing");
+        return;
       }
 
-
-      // SAVE CART
-      localStorage.setItem(
-        "pizzaCart",
-        JSON.stringify(updatedCart)
+      const pizzaId = String(
+        pizza._id || pizza.id || ""
       );
 
+      if (!pizzaId) {
+        console.error(
+          "Pizza ID missing:",
+          pizza
+        );
+        return;
+      }
 
-      return updatedCart;
-    });
+      setCart((currentCart) => {
+        const existingPizzaIndex =
+          currentCart.findIndex(
+            (item) =>
+              String(
+                item.id || item._id || ""
+              ) === pizzaId
+          );
 
+        // =================================================
+        // EXISTING PIZZA
+        // =================================================
 
-    // Small feedback
-    alert(`${pizza.name} added to cart 🛒`);
+        if (existingPizzaIndex !== -1) {
+          return currentCart.map(
+            (item, index) => {
+              if (
+                index !== existingPizzaIndex
+              ) {
+                return item;
+              }
+
+              return {
+                ...item,
+
+                id: pizzaId,
+                _id: pizzaId,
+
+                quantity:
+                  Number(item.quantity || 1) + 1,
+
+                price:
+                  Number(item.price) || 0,
+              };
+            }
+          );
+        }
+
+        // =================================================
+        // NEW PIZZA
+        // =================================================
+
+        const newCartItem = {
+          id: pizzaId,
+          _id: pizzaId,
+
+          name: pizza.name || "Pizza",
+
+          category:
+            pizza.category || "Pizza",
+
+          description:
+            pizza.description || "",
+
+          image:
+            pizza.image || "",
+
+          price:
+            Number(pizza.price) || 0,
+
+          oldPrice:
+            pizza.oldPrice !== null &&
+            pizza.oldPrice !== undefined
+              ? Number(pizza.oldPrice)
+              : null,
+
+          rating:
+            Number(pizza.rating) || 0,
+
+          reviews:
+            Number(pizza.reviews) || 0,
+
+          quantity: 1,
+        };
+
+        return [
+          ...currentCart,
+          newCartItem,
+        ];
+      });
+
+      // Small user feedback
+      console.log(
+        `${pizza.name} added to cart`
+      );
+    } catch (error) {
+      console.error(
+        "Add to cart error:",
+        error
+      );
+    }
   };
-
 
   // =======================================================
   // FILTER PIZZAS
   // =======================================================
 
   const filteredPizzas = useMemo(() => {
+    const searchText =
+      search.trim().toLowerCase();
 
     return pizzas.filter((pizza) => {
+      const pizzaName =
+        pizza.name?.toLowerCase() || "";
+
+      const pizzaDescription =
+        pizza.description?.toLowerCase() || "";
+
+      const pizzaCategory =
+        pizza.category || "";
 
       const matchesCategory =
         activeCategory === "All" ||
-        pizza.category === activeCategory;
-
+        pizzaCategory === activeCategory;
 
       const matchesSearch =
-        pizza.name
+        !searchText ||
+        pizzaName.includes(searchText) ||
+        pizzaDescription.includes(searchText) ||
+        pizzaCategory
           .toLowerCase()
-          .includes(search.toLowerCase()) ||
-
-        pizza.description
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
+          .includes(searchText);
 
       return (
         matchesCategory &&
         matchesSearch
       );
     });
-
-  }, [search, activeCategory]);
-
+  }, [
+    pizzas,
+    search,
+    activeCategory,
+  ]);
 
   // =======================================================
   // CART COUNT
   // =======================================================
 
-  const cartCount = cart.reduce(
-    (total, item) =>
-      total + item.quantity,
-    0
-  );
-
+  const cartCount = useMemo(() => {
+    return cart.reduce(
+      (total, item) =>
+        total +
+        (Number(item.quantity) || 0),
+      0
+    );
+  }, [cart]);
 
   // =======================================================
   // CART TOTAL
   // =======================================================
 
-  const cartTotal = cart.reduce(
-    (total, item) =>
-      total +
-      item.price * item.quantity,
-    0
-  );
+  const cartTotal = useMemo(() => {
+    return cart.reduce(
+      (total, item) =>
+        total +
+        (Number(item.price) || 0) *
+          (Number(item.quantity) || 0),
+      0
+    );
+  }, [cart]);
 
+  // =======================================================
+  // UI
+  // =======================================================
 
   return (
     <>
       <Navbar />
 
-
       <main className="min-h-screen bg-[#fafafa]">
-
 
         {/* =================================================
             WELCOME HEADER
@@ -295,7 +354,6 @@ export default function Dashboard() {
 
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
 
-
               <div>
 
                 <div className="flex items-center gap-2 text-red-600 text-sm font-black">
@@ -306,36 +364,27 @@ export default function Dashboard() {
 
                 </div>
 
-
                 <h1 className="text-3xl md:text-4xl font-black mt-2">
-
                   What are you craving today?
-
                 </h1>
 
-
                 <p className="text-gray-500 mt-2">
-
-                  Fresh pizza, delicious toppings and fast delivery.
-
+                  Fresh pizza, delicious toppings
+                  and fast delivery.
                 </p>
 
               </div>
-
 
               <Link
                 to="/pizza-builder"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 transition shadow-lg shadow-red-200"
               >
-
                 <Flame size={19} />
 
                 Build Your Pizza
-
               </Link>
 
             </div>
-
 
             {/* LOCATION */}
 
@@ -350,18 +399,17 @@ export default function Dashboard() {
                 Delivering to
               </span>
 
-              <button className="font-bold text-gray-800 hover:text-red-600">
-
+              <button
+                type="button"
+                className="font-bold text-gray-800 hover:text-red-600"
+              >
                 Your Location
-
               </button>
 
               <span>•</span>
 
               <span className="text-green-600 font-semibold">
-
                 Delivery available
-
               </span>
 
             </div>
@@ -369,8 +417,6 @@ export default function Dashboard() {
           </div>
 
         </section>
-
-
 
         {/* =================================================
             CART SUMMARY
@@ -396,29 +442,27 @@ export default function Dashboard() {
 
                     <p className="font-black text-lg">
 
-                      {cartCount} item
-                      {cartCount > 1 ? "s" : ""} in your cart
+                      {cartCount}{" "}
+                      {cartCount === 1
+                        ? "item"
+                        : "items"}{" "}
+                      in your cart
 
                     </p>
 
                     <p className="text-gray-400 text-sm">
-
                       Cart total: ₹{cartTotal}
-
                     </p>
 
                   </div>
 
                 </div>
 
-
                 <Link
                   to="/cart"
                   className="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-xl font-black text-center transition"
                 >
-
                   View Cart
-
                 </Link>
 
               </div>
@@ -428,8 +472,6 @@ export default function Dashboard() {
           </section>
 
         )}
-
-
 
         {/* =================================================
             OFFER BANNER
@@ -441,7 +483,6 @@ export default function Dashboard() {
 
             <div className="absolute -right-20 -top-24 w-72 h-72 bg-white/10 rounded-full" />
 
-
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
 
               <div className="flex items-start gap-4">
@@ -452,41 +493,30 @@ export default function Dashboard() {
 
                 </div>
 
-
                 <div>
 
                   <p className="text-orange-100 text-xs font-black uppercase tracking-widest">
-
                     Today's Special
-
                   </p>
 
-
                   <h2 className="text-2xl md:text-3xl font-black mt-1">
-
                     Get 20% OFF your first order 🎉
-
                   </h2>
 
-
                   <p className="text-red-100 text-sm mt-1">
-
-                    Fresh pizza + great deal = perfect combination.
-
+                    Fresh pizza + great deal =
+                    perfect combination.
                   </p>
 
                 </div>
 
               </div>
 
-
               <Link
                 to="/pizza-builder"
                 className="shrink-0 bg-white text-red-600 px-6 py-3 rounded-xl font-black hover:bg-orange-50 transition"
               >
-
                 Order Now
-
               </Link>
 
             </div>
@@ -494,8 +524,6 @@ export default function Dashboard() {
           </div>
 
         </section>
-
-
 
         {/* =================================================
             ACTIVE ORDER
@@ -507,7 +535,6 @@ export default function Dashboard() {
 
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
 
-
               <div>
 
                 <div className="flex items-center gap-2 text-red-600 text-xs font-black">
@@ -518,22 +545,15 @@ export default function Dashboard() {
 
                 </div>
 
-
                 <h2 className="text-xl md:text-2xl font-black mt-2">
-
                   Your pizza is being prepared 🍕
-
                 </h2>
 
-
                 <p className="text-gray-500 text-sm mt-1">
-
                   Estimated delivery: 25–30 minutes
-
                 </p>
 
               </div>
-
 
               <div className="flex items-center gap-3">
 
@@ -545,22 +565,18 @@ export default function Dashboard() {
 
                 </div>
 
-
                 <Link
                   to="/orders"
                   className="bg-gray-900 text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-red-600 transition"
                 >
-
                   Track Order
 
                   <ArrowRight size={17} />
-
                 </Link>
 
               </div>
 
             </div>
-
 
             {/* PROGRESS */}
 
@@ -586,7 +602,6 @@ export default function Dashboard() {
 
               </div>
 
-
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
 
                 <div className="h-full w-[48%] bg-red-600 rounded-full" />
@@ -599,14 +614,11 @@ export default function Dashboard() {
 
         </section>
 
-
-
         {/* =================================================
             MENU
         ================================================== */}
 
         <section className="max-w-7xl mx-auto px-6 py-10">
-
 
           {/* TITLE */}
 
@@ -615,30 +627,20 @@ export default function Dashboard() {
             <div>
 
               <p className="text-xs font-black text-red-600 uppercase tracking-[0.2em]">
-
                 Explore Our Menu
-
               </p>
 
-
               <h2 className="text-3xl md:text-4xl font-black mt-2">
-
                 Find Your Perfect Pizza 🍕
-
               </h2>
 
             </div>
 
-
             <div className="text-sm text-gray-500">
-
               {filteredPizzas.length} pizzas available
-
             </div>
 
           </div>
-
-
 
           {/* SEARCH */}
 
@@ -650,7 +652,6 @@ export default function Dashboard() {
                 size={19}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
               />
-
 
               <input
                 id="pizza-search"
@@ -665,21 +666,16 @@ export default function Dashboard() {
 
             </div>
 
-
             <button
               type="button"
               className="md:w-auto px-5 py-4 bg-white border border-gray-200 rounded-2xl font-bold flex items-center justify-center gap-2 hover:border-red-500 hover:text-red-600 transition"
             >
-
               <SlidersHorizontal size={18} />
 
               Filters
-
             </button>
 
           </div>
-
-
 
           {/* CATEGORIES */}
 
@@ -699,29 +695,68 @@ export default function Dashboard() {
                     : "bg-white border border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-600"
                 }`}
               >
-
                 {category}
-
               </button>
 
             ))}
 
           </div>
 
-
-
           {/* =================================================
               PIZZAS
           ================================================== */}
 
-          {filteredPizzas.length > 0 ? (
+          {loading ? (
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+              {[1, 2, 3, 4, 5, 6].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="h-96 bg-gray-200 rounded-3xl animate-pulse"
+                  />
+                )
+              )}
+
+            </div>
+
+          ) : error ? (
+
+            <div className="bg-white border border-red-100 rounded-3xl py-16 text-center">
+
+              <div className="text-5xl">
+                ⚠️
+              </div>
+
+              <h3 className="text-xl font-black mt-4 text-red-600">
+                Unable to load pizzas
+              </h3>
+
+              <p className="text-gray-500 text-sm mt-2">
+                {error}
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  window.location.reload()
+                }
+                className="mt-5 bg-red-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-red-700 transition"
+              >
+                Try Again
+              </button>
+
+            </div>
+
+          ) : filteredPizzas.length > 0 ? (
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
               {filteredPizzas.map((pizza) => (
 
                 <PizzaCard
-                  key={pizza.id}
+                  key={pizza._id || pizza.id}
                   pizza={pizza}
                   onAddToCart={handleAddToCart}
                 />
@@ -739,24 +774,32 @@ export default function Dashboard() {
               </div>
 
               <h3 className="text-xl font-black mt-4">
-
                 No pizza found
-
               </h3>
 
               <p className="text-gray-500 text-sm mt-2">
-
                 Try another pizza name or category.
-
               </p>
+
+              {(search ||
+                activeCategory !== "All") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setActiveCategory("All");
+                  }}
+                  className="mt-5 bg-gray-900 text-white px-5 py-3 rounded-xl font-bold hover:bg-red-600 transition"
+                >
+                  Clear Filters
+                </button>
+              )}
 
             </div>
 
           )}
 
         </section>
-
-
 
         {/* =================================================
             BUILD YOUR OWN CTA
@@ -769,60 +812,44 @@ export default function Dashboard() {
             <div className="flex items-center gap-5">
 
               <div className="w-16 h-16 bg-red-600 text-white rounded-2xl flex items-center justify-center text-3xl">
-
                 🍕
-
               </div>
-
 
               <div>
 
                 <p className="text-red-600 text-xs font-black uppercase tracking-widest">
-
                   Make It Yours
-
                 </p>
 
-
                 <h2 className="text-2xl md:text-3xl font-black mt-1">
-
                   Build your own pizza
-
                 </h2>
 
-
                 <p className="text-gray-500 text-sm mt-1">
-
-                  Choose your crust, sauce, cheese and toppings.
-
+                  Choose your crust, sauce, cheese and
+                  toppings.
                 </p>
 
               </div>
 
             </div>
 
-
             <Link
               to="/pizza-builder"
               className="shrink-0 px-6 py-3.5 bg-red-600 text-white rounded-xl font-black flex items-center gap-2 hover:bg-red-700 transition"
             >
-
               Start Building
 
               <ArrowRight size={18} />
-
             </Link>
 
           </div>
 
         </section>
 
-
       </main>
 
-
       <Footer />
-
     </>
   );
 }
