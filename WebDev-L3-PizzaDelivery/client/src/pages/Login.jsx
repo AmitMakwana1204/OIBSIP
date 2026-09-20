@@ -147,7 +147,7 @@ export default function Login() {
                   🍕
                 </div>
 
-                <div className="ml-[-20px] w-48 bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-xl">
+                <div className="ml-[-10px] w-48 bg-white/15 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-xl">
 
                   <div className="flex items-center gap-1 mb-1">
                     <Star
