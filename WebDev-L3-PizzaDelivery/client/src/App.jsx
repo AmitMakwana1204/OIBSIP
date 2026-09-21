@@ -17,6 +17,8 @@ import OrderSummary from "./pages/OrderSummary";
 import Orders from "./pages/Orders";
 import Cart from "./pages/Cart";
 import VerifyEmail from "./pages/VerifyEmail"; 
+import Checkout from "./pages/Checkout"; 
+import OrderSuccess from "./pages/OrderSuccess";  
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -107,7 +109,22 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-success/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderSuccess />
+              </ProtectedRoute>
+            }
+          />
           {/* ================= ADMIN ROUTES ================= */}
 
           <Route

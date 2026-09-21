@@ -13,10 +13,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { createUserOrder } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 export default function OrderSummary() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -95,62 +97,52 @@ export default function OrderSummary() {
       setError("");
 
       const orderData = {
-        pizzaConfiguration: {
-          ...pizza,
+        items: [
+          {
+            product: selectedPizza?._id || selectedPizza?.id || null,
+            name: selectedPizza?.name || pizza.name || "Custom Pizza",
+            price: pricing.singlePizzaPrice,
+            quantity,
+            image:
+              selectedPizza?.image ||
+              pizza.image ||
+              "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400",
+          },
+        ],
 
-          base: pizza.base
-            ? {
-                name: pizza.base.name,
-                price: Number(pizza.base.price) || 0,
-              }
-            : null,
-
-          sauce: pizza.sauce
-            ? {
-                name: pizza.sauce.name,
-                price: Number(pizza.sauce.price) || 0,
-              }
-            : null,
-
-          cheese: pizza.cheese
-            ? {
-                name: pizza.cheese.name,
-                price: Number(pizza.cheese.price) || 0,
-              }
-            : null,
-
-          vegetables: Array.isArray(pizza.vegetables)
-            ? pizza.vegetables.map((item) => ({
-                name: item.name,
-                price: Number(item.price) || 0,
-              }))
-            : [],
+        customer: {
+          name: user?.name || "Customer",
+          phone: "9876543210",
         },
 
-        quantity,
-
-        totalAmount: pricing.finalTotal,
-
-        deliveryAddress: {
-          street: "221B Baker Street",
+        shippingAddress: {
+          address: "221B Baker Street",
           city: "Mumbai",
-          state: "Maharashtra",
-          zipCode: "400001",
-          fullAddress:
-            "221B Baker Street, Mumbai, Maharashtra 400001",
+          pincode: "400001",
         },
 
         paymentMethod: "COD",
-        paymentStatus: "Pending",
+        paymentStatus: "PENDING",
+
+        subtotal: pricing.itemTotal,
+        deliveryFee: pricing.deliveryFee,
+        discount: pricing.discount,
+        total: pricing.finalTotal,
       };
 
       const res = await createUserOrder(orderData);
 
-      if (res.data?.success) {
-        navigate("/orders", {
+      const placedOrder =
+        res.data?.order ||
+        res.data?.data ||
+        res.data ||
+        res;
+
+      if (res.data?.success || res.status === 201) {
+        navigate("/order-success", {
           replace: true,
           state: {
-            newOrder: res.data.data,
+            order: placedOrder,
           },
         });
 

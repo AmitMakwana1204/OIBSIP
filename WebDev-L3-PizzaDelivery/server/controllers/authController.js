@@ -82,11 +82,16 @@ const register = async (req, res) => {
     });
 
     // Send verification email
-    await sendVerificationEmail(
-      user.email,
-      user.name,
-      verificationToken
-    );
+    try {
+      await sendVerificationEmail(
+        user.email,
+        user.name,
+        verificationToken
+      );
+    } catch (emailErr) {
+      console.warn("⚠️ Warning: Email sending failed:", emailErr.message);
+      console.log(`🔗 Verification Link for ${user.email}: ${process.env.CLIENT_URL || "http://localhost:5173"}/verify-email?token=${verificationToken}`);
+    }
 
     return res.status(201).json({
       success: true,
@@ -273,11 +278,16 @@ const forgotPassword = async (req, res) => {
     await user.save();
 
     // Send password reset email
-    await sendPasswordResetEmail(
-      user.email,
-      user.name,
-      resetToken
-    );
+    try {
+      await sendPasswordResetEmail(
+        user.email,
+        user.name,
+        resetToken
+      );
+    } catch (emailErr) {
+      console.warn("⚠️ Warning: Password reset email sending failed:", emailErr.message);
+      console.log(`🔗 Password Reset Link for ${user.email}: ${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${resetToken}`);
+    }
 
     return res.status(200).json({
       success: true,

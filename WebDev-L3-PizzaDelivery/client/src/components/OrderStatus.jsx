@@ -2,23 +2,29 @@ import {
   CheckCircle2,
   ChefHat,
   Bike,
+  PackageCheck,
 } from "lucide-react";
 
 const statuses = [
   {
-    title: "Order Received",
+    title: "Order Placed",
     description: "Your order has been confirmed.",
     icon: CheckCircle2,
   },
   {
     title: "In Kitchen",
-    description: "Your pizza is being prepared.",
+    description: "Your pizza is being prepared fresh.",
     icon: ChefHat,
   },
   {
-    title: "Sent to Delivery",
-    description: "Your pizza is on its way.",
+    title: "Out for Delivery",
+    description: "Your pizza is on its way to you.",
     icon: Bike,
+  },
+  {
+    title: "Delivered",
+    description: "Order delivered! Enjoy your meal.",
+    icon: PackageCheck,
   },
 ];
 

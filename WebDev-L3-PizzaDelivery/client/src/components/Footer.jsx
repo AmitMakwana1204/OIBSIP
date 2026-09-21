@@ -17,8 +17,6 @@ export default function Footer() {
   const quickLinks = [
     { name: "Home", path: "/" },
     { name: "Menu", path: "/dashboard" },
-    { name: "Build Pizza", path: "/pizza-builder" },
-    { name: "My Orders", path: "/orders" },
   ];
 
   const supportLinks = [

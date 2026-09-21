@@ -16,9 +16,10 @@ import {
 import { getAdminOrders, updateAdminOrderStatus } from "../../services/api";
 
 const STATUS_OPTIONS = [
-  "Order Received",
+  "Order Placed",
+  "Confirmed",
   "In Kitchen",
-  "Sent to Delivery",
+  "Out for Delivery",
   "Delivered",
   "Cancelled",
 ];
@@ -44,7 +45,7 @@ export default function AdminOrders() {
       setError("");
       const res = await getAdminOrders();
       if (res.data && res.data.success) {
-        setOrders(res.data.data || []);
+        setOrders(res.data.data || res.data.orders || []);
       }
     } catch (err) {
       console.error("Fetch orders error:", err);
@@ -88,19 +89,32 @@ export default function AdminOrders() {
     const term = `${order.id} ${order.customer} ${order.email} ${order.pizza}`.toLowerCase();
     const matchesSearch = term.includes(search.toLowerCase());
     const matchesStatus =
-      statusFilter === "All" || order.status === statusFilter;
+      statusFilter === "All" ||
+      order.status === statusFilter ||
+      order.rawStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   // Dynamic status counts calculated from real DB data
   const newOrdersCount = orders.filter(
-    (o) => o.status === "Order Received"
+    (o) =>
+      o.status === "Order Placed" ||
+      o.status === "Confirmed" ||
+      o.status === "Order Received" ||
+      o.rawStatus === "PLACED" ||
+      o.rawStatus === "CONFIRMED"
   ).length;
   const inKitchenCount = orders.filter(
-    (o) => o.status === "In Kitchen"
+    (o) =>
+      o.status === "In Kitchen" ||
+      o.status === "Preparing" ||
+      o.rawStatus === "PREPARING"
   ).length;
   const outForDeliveryCount = orders.filter(
-    (o) => o.status === "Sent to Delivery"
+    (o) =>
+      o.status === "Out for Delivery" ||
+      o.status === "Sent to Delivery" ||
+      o.rawStatus === "OUT_FOR_DELIVERY"
   ).length;
 
   return (
@@ -357,6 +371,14 @@ function OrderCount({ icon, label, value, color, bg }) {
 
 function StatusBadge({ status }) {
   const styles = {
+    "Order Placed": {
+      className: "bg-purple-100 text-purple-700",
+      icon: Clock3,
+    },
+    Confirmed: {
+      className: "bg-blue-100 text-blue-700",
+      icon: CheckCircle2,
+    },
     "Order Received": {
       className: "bg-purple-100 text-purple-700",
       icon: Clock3,
@@ -364,6 +386,14 @@ function StatusBadge({ status }) {
     "In Kitchen": {
       className: "bg-orange-100 text-orange-700",
       icon: ChefHat,
+    },
+    Preparing: {
+      className: "bg-orange-100 text-orange-700",
+      icon: ChefHat,
+    },
+    "Out for Delivery": {
+      className: "bg-indigo-100 text-indigo-700",
+      icon: Truck,
     },
     "Sent to Delivery": {
       className: "bg-blue-100 text-blue-700",

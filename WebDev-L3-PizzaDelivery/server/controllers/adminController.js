@@ -87,7 +87,7 @@ const getDashboardStats = async (req, res) => {
       {
         $group: {
           _id: null,
-          total: { $sum: "$totalAmount" },
+          total: { $sum: "$total" },
         },
       },
     ]);
@@ -110,17 +110,24 @@ const getDashboardStats = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    const statusMap = {
+      PLACED: "Order Placed",
+      CONFIRMED: "Confirmed",
+      PREPARING: "In Kitchen",
+      OUT_FOR_DELIVERY: "Out for Delivery",
+      DELIVERED: "Delivered",
+      CANCELLED: "Cancelled",
+    };
+
     const recentOrders = recentOrdersRaw.map((order) => {
-      // Generate readable pizza name
-      const base = order.pizzaConfiguration?.base?.name;
-      const sauce = order.pizzaConfiguration?.sauce?.name;
-      const cheese = order.pizzaConfiguration?.cheese?.name;
-      const vegCount = order.pizzaConfiguration?.vegetables?.length || 0;
-      let pizzaDescription = "Custom Pizza";
-      if (base && cheese) {
-        pizzaDescription = `${base} (${cheese}${vegCount > 0 ? ` + ${vegCount} Toppings` : ""})`;
-      } else if (order.items?.[0]?.name) {
-        pizzaDescription = order.items[0].name;
+      // Generate readable pizza name from items array or legacy fields
+      let pizzaDescription = "Pizza";
+      if (Array.isArray(order.items) && order.items.length > 0) {
+        pizzaDescription = order.items
+          .map((item) => `${item.name} x${item.quantity}`)
+          .join(", ");
+      } else if (order.pizzaConfiguration?.base?.name) {
+        pizzaDescription = `${order.pizzaConfiguration.base.name} (Custom)`;
       }
 
       // Format time elapsed
@@ -135,23 +142,14 @@ const getDashboardStats = async (req, res) => {
         timeText = `${Math.floor(diffMins / 1440)}d ago`;
       }
 
-      // Map status label
-      const statusMap = {
-        ORDER_RECEIVED: "Order Received",
-        IN_KITCHEN: "In Kitchen",
-        SENT_TO_DELIVERY: "Sent to Delivery",
-        DELIVERED: "Delivered",
-        CANCELLED: "Cancelled",
-      };
-
       return {
         _id: order._id,
         id: order.orderId || `#PH${order._id.toString().slice(-4)}`,
-        customer: order.user?.name || "Customer",
+        customer: order.customer?.name || order.user?.name || "Customer",
         email: order.user?.email || "customer@pizzahub.com",
         pizza: pizzaDescription,
-        amount: `₹${order.totalAmount}`,
-        rawAmount: order.totalAmount,
+        amount: `₹${order.total || 0}`,
+        rawAmount: order.total || 0,
         time: timeText,
         status: statusMap[order.orderStatus] || order.orderStatus,
         rawStatus: order.orderStatus,
@@ -162,8 +160,7 @@ const getDashboardStats = async (req, res) => {
     // 6. Sales Overview grouped by day for current week (Mon-Sun)
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const now = new Date();
-    // Get start of the current week (Sunday or Monday)
-    const currentDayOfWeek = now.getDay(); // 0 is Sun, 1 is Mon...
+    const currentDayOfWeek = now.getDay();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - currentDayOfWeek);
     startOfWeek.setHours(0, 0, 0, 0);
@@ -189,7 +186,7 @@ const getDashboardStats = async (req, res) => {
       const orderDate = new Date(order.createdAt);
       const dName = dayNames[orderDate.getDay()];
       if (salesMap[dName]) {
-        salesMap[dName].revenue += order.totalAmount;
+        salesMap[dName].revenue += order.total || 0;
         salesMap[dName].orders += 1;
       }
     });
@@ -215,11 +212,12 @@ const getDashboardStats = async (req, res) => {
     ]);
 
     const statusCountsMap = {
+      PLACED: 0,
+      CONFIRMED: 0,
+      PREPARING: 0,
+      OUT_FOR_DELIVERY: 0,
       DELIVERED: 0,
-      IN_KITCHEN: 0,
-      SENT_TO_DELIVERY: 0,
       CANCELLED: 0,
-      ORDER_RECEIVED: 0,
     };
 
     statusCounts.forEach((sc) => {

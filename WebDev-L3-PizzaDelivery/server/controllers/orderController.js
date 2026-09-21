@@ -1,40 +1,35 @@
+const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Inventory = require("../models/Inventory");
-const User = require("../models/User");
 
-// Allowed order statuses
+// ==========================================
+// ORDER STATUS
+// ==========================================
 const ALLOWED_STATUSES = [
-  "ORDER_RECEIVED",
-  "IN_KITCHEN",
-  "SENT_TO_DELIVERY",
+  "PLACED",
+  "CONFIRMED",
+  "PREPARING",
+  "OUT_FOR_DELIVERY",
   "DELIVERED",
   "CANCELLED",
 ];
 
-// Status display map
 const STATUS_MAP = {
-  ORDER_RECEIVED: "Order Received",
-  IN_KITCHEN: "In Kitchen",
-  SENT_TO_DELIVERY: "Sent to Delivery",
+  PLACED: "Order Placed",
+  CONFIRMED: "Confirmed",
+  PREPARING: "Preparing",
+  OUT_FOR_DELIVERY: "Out for Delivery",
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
 };
 
 // ==========================================
-// CREATE USER ORDER WITH INVENTORY DECREMENT
+// CREATE USER ORDER
 // POST /api/orders
 // ==========================================
 const createOrder = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    const {
-      pizzaConfiguration,
-      quantity = 1,
-      totalAmount,
-      deliveryAddress,
-      paymentId,
-      items,
-    } = req.body;
+    const userId = req.user?.id || req.user?._id;
 
     if (!userId) {
       return res.status(401).json({
@@ -43,139 +38,242 @@ const createOrder = async (req, res) => {
       });
     }
 
-    if (!totalAmount || totalAmount <= 0) {
+    const {
+      items,
+      customer,
+      shippingAddress,
+      paymentMethod = "COD",
+      subtotal = 0,
+      deliveryFee = 0,
+      discount = 0,
+      total = 0,
+    } = req.body;
+
+    // ==========================================
+    // BASIC VALIDATION
+    // ==========================================
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Order must contain at least one item.",
+      });
+    }
+
+    if (!customer?.name || !customer?.phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer name and phone are required.",
+      });
+    }
+
+    if (
+      !shippingAddress?.address ||
+      !shippingAddress?.city ||
+      !shippingAddress?.pincode
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Complete shipping address is required.",
+      });
+    }
+
+    if (!["COD", "ONLINE"].includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method.",
+      });
+    }
+
+    if (Number(total) <= 0) {
       return res.status(400).json({
         success: false,
         message: "Invalid total amount for the order.",
       });
     }
 
-    const orderQty = Math.max(1, Number(quantity) || 1);
+    // ==========================================
+    // NORMALIZE ITEMS
+    // ==========================================
+
+    const normalizedItems = items.map((item) => {
+      const rawProductId =
+        item.product ||
+        item.productId ||
+        item._id ||
+        item.id ||
+        null;
+
+      const isValidObjectId =
+        rawProductId &&
+        mongoose.Types.ObjectId.isValid(String(rawProductId));
+
+      return {
+        product: isValidObjectId ? rawProductId : null,
+        name: item.name || "Pizza",
+        price: Number(item.price) || 0,
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        image: item.image || "",
+      };
+    });
 
     // ==========================================
-    // INVENTORY STOCK CHECK & DECREMENT
+    // INVENTORY
     // ==========================================
-    const ingredientsNeeded = [];
+    //
+    // Inventory decrement is kept only when
+    // matching inventory items are found.
+    //
+    // ==========================================
 
-    if (pizzaConfiguration) {
-      if (pizzaConfiguration.base?.name) {
-        ingredientsNeeded.push({
-          name: pizzaConfiguration.base.name.trim(),
-          qty: 1 * orderQty,
-        });
-      }
-      if (pizzaConfiguration.sauce?.name) {
-        ingredientsNeeded.push({
-          name: pizzaConfiguration.sauce.name.trim(),
-          qty: 1 * orderQty,
-        });
-      }
-      if (pizzaConfiguration.cheese?.name) {
-        ingredientsNeeded.push({
-          name: pizzaConfiguration.cheese.name.trim(),
-          qty: 1 * orderQty,
-        });
-      }
-      if (Array.isArray(pizzaConfiguration.vegetables)) {
-        pizzaConfiguration.vegetables.forEach((veg) => {
-          if (veg?.name) {
-            ingredientsNeeded.push({
-              name: veg.name.trim(),
-              qty: 1 * orderQty,
-            });
-          }
-        });
-      }
-    }
-
-    // Check inventory items if they exist in DB
-    const inventoryItemsToUpdate = [];
-
-    for (const reqItem of ingredientsNeeded) {
-      const invDoc = await Inventory.findOne({
-        name: { $regex: new RegExp(`^${reqItem.name}$`, "i") },
+    for (const item of normalizedItems) {
+      const inventoryItem = await Inventory.findOne({
+        name: {
+          $regex: new RegExp(
+            `^${item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+            "i"
+          ),
+        },
       });
 
-      if (invDoc) {
-        if (invDoc.stock < reqItem.qty) {
+      if (inventoryItem) {
+        const requiredQty = item.quantity;
+
+        if (inventoryItem.stock < requiredQty) {
           return res.status(400).json({
             success: false,
-            message: `Insufficient stock for "${invDoc.name}". Only ${invDoc.stock} available.`,
+            message: `Insufficient stock for "${inventoryItem.name}". Only ${inventoryItem.stock} available.`,
           });
         }
-        inventoryItemsToUpdate.push({
-          doc: invDoc,
-          decrementBy: reqItem.qty,
-        });
       }
     }
 
-    // Decrement stock for all matched ingredients
-    for (const item of inventoryItemsToUpdate) {
-      item.doc.stock = Math.max(0, item.doc.stock - item.decrementBy);
-      await item.doc.save();
+    // ==========================================
+    // DECREMENT INVENTORY
+    // ==========================================
+
+    for (const item of normalizedItems) {
+      const inventoryItem = await Inventory.findOne({
+        name: {
+          $regex: new RegExp(
+            `^${item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+            "i"
+          ),
+        },
+      });
+
+      if (inventoryItem) {
+        inventoryItem.stock = Math.max(
+          0,
+          inventoryItem.stock - item.quantity
+        );
+
+        await inventoryItem.save();
+      }
     }
 
-    // Create Order in MongoDB
+    // ==========================================
+    // PAYMENT STATUS
+    // ==========================================
+
+    const paymentStatus =
+      paymentMethod === "COD" ? "PENDING" : "PENDING";
+
+    // ==========================================
+    // CREATE ORDER
+    // ==========================================
+
     const newOrder = await Order.create({
       user: userId,
-      items: items || [
-        {
-          name: "Custom Pizza",
-          quantity: orderQty,
-          price: totalAmount,
-        },
-      ],
-      pizzaConfiguration: pizzaConfiguration || {},
-      quantity: orderQty,
-      totalAmount,
-      paymentStatus: "PAID",
-      paymentId: paymentId || `PAY_${Date.now()}`,
-      orderStatus: "ORDER_RECEIVED",
-      deliveryAddress: deliveryAddress || {
-        street: "221B Baker Street",
-        city: "Mumbai",
-        state: "Maharashtra",
-        zipCode: "400001",
-        fullAddress: "221B Baker Street, Mumbai, Maharashtra 400001",
+
+      items: normalizedItems,
+
+      customer: {
+        name: customer.name.trim(),
+        phone: customer.phone.trim(),
       },
+
+      shippingAddress: {
+        address: shippingAddress.address.trim(),
+        city: shippingAddress.city.trim(),
+        pincode: shippingAddress.pincode.trim(),
+      },
+
+      paymentMethod,
+
+      paymentStatus,
+
+      orderStatus: "PLACED",
+
+      subtotal: Number(subtotal) || 0,
+      deliveryFee: Number(deliveryFee) || 0,
+      discount: Number(discount) || 0,
+      total: Number(total) || 0,
     });
+
+    // ==========================================
+    // POPULATE USER
+    // ==========================================
 
     const populatedOrder = await Order.findById(newOrder._id).populate(
       "user",
       "name email"
     );
 
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
     return res.status(201).json({
       success: true,
       message: "Order placed successfully.",
+      order: populatedOrder,
       data: populatedOrder,
     });
   } catch (error) {
     console.error("Create order error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to create order.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
 
 // ==========================================
-// GET USER'S OWN ORDERS
+// GET USER ORDERS
 // GET /api/orders/my-orders
 // ==========================================
 const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user?.id;
-    const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const orders = await Order.find({
+      user: userId,
+    })
+      .populate("items.product")
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
       count: orders.length,
+      orders,
       data: orders,
     });
   } catch (error) {
     console.error("Get user orders error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch orders.",
@@ -189,52 +287,44 @@ const getUserOrders = async (req, res) => {
 // ==========================================
 const getAllOrders = async (req, res) => {
   try {
-    const ordersRaw = await Order.find()
+    const orders = await Order.find()
       .populate("user", "name email")
+      .populate("items.product")
       .sort({ createdAt: -1 });
 
-    const formattedOrders = ordersRaw.map((order) => {
-      const base = order.pizzaConfiguration?.base?.name;
-      const sauce = order.pizzaConfiguration?.sauce?.name;
-      const cheese = order.pizzaConfiguration?.cheese?.name;
-      const vegList =
-        order.pizzaConfiguration?.vegetables?.map((v) => v.name).join(", ") ||
-        "";
+    const formattedOrders = orders.map((order) => ({
+      _id: order._id,
 
-      let pizzaDescription = "Custom Veg Pizza";
-      if (base && cheese) {
-        pizzaDescription = `${base} (${cheese}${vegList ? `, ${vegList}` : ""})`;
-      } else if (order.items?.[0]?.name) {
-        pizzaDescription = order.items[0].name;
-      }
+      id:
+        order.orderId ||
+        `#PH${order._id.toString().slice(-6).toUpperCase()}`,
 
-      // Elapsed time
-      const diffMs = Date.now() - new Date(order.createdAt).getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      let timeText = "Just now";
-      if (diffMins < 60) {
-        timeText = `${diffMins} min ago`;
-      } else if (diffMins < 1440) {
-        timeText = `${Math.floor(diffMins / 60)}h ago`;
-      } else {
-        timeText = `${Math.floor(diffMins / 1440)}d ago`;
-      }
+      customer: order.customer?.name || order.user?.name || "Customer",
 
-      return {
-        _id: order._id,
-        id: order.orderId || `#PH${order._id.toString().slice(-4)}`,
-        customer: order.user?.name || "Customer",
-        email: order.user?.email || "customer@pizzahub.com",
-        pizza: pizzaDescription,
-        amount: order.totalAmount,
-        paymentStatus: order.paymentStatus,
-        status: STATUS_MAP[order.orderStatus] || order.orderStatus,
-        rawStatus: order.orderStatus,
-        time: timeText,
-        deliveryAddress: order.deliveryAddress,
-        createdAt: order.createdAt,
-      };
-    });
+      email: order.user?.email || "customer@pizzahub.com",
+
+      pizza:
+        order.items
+          ?.map((item) => `${item.name} x${item.quantity}`)
+          .join(", ") || "Pizza",
+
+      amount: order.total,
+
+      paymentStatus: order.paymentStatus,
+
+      paymentMethod: order.paymentMethod,
+
+      status:
+        STATUS_MAP[order.orderStatus] || order.orderStatus,
+
+      rawStatus: order.orderStatus,
+
+      time: order.createdAt,
+
+      shippingAddress: order.shippingAddress,
+
+      createdAt: order.createdAt,
+    }));
 
     return res.status(200).json({
       success: true,
@@ -243,6 +333,7 @@ const getAllOrders = async (req, res) => {
     });
   } catch (error) {
     console.error("Get all orders error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch orders.",
@@ -256,10 +347,9 @@ const getAllOrders = async (req, res) => {
 // ==========================================
 const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate(
-      "user",
-      "name email"
-    );
+    const order = await Order.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("items.product");
 
     if (!order) {
       return res.status(404).json({
@@ -274,6 +364,7 @@ const getOrderById = async (req, res) => {
     });
   } catch (error) {
     console.error("Get order by ID error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch order details.",
@@ -296,26 +387,54 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Map UI friendly labels to DB enum if necessary
     const reverseStatusMap = {
-      "Order Received": "ORDER_RECEIVED",
-      "In Kitchen": "IN_KITCHEN",
-      "Sent to Delivery": "SENT_TO_DELIVERY",
-      Delivered: "DELIVERED",
-      Cancelled: "CANCELLED",
-      ORDER_RECEIVED: "ORDER_RECEIVED",
-      IN_KITCHEN: "IN_KITCHEN",
-      SENT_TO_DELIVERY: "SENT_TO_DELIVERY",
+      "order placed": "PLACED",
+      "order received": "PLACED",
+      "confirmed": "CONFIRMED",
+      "in kitchen": "PREPARING",
+      "preparing": "PREPARING",
+      "sent to delivery": "OUT_FOR_DELIVERY",
+      "out for delivery": "OUT_FOR_DELIVERY",
+      "delivered": "DELIVERED",
+      "cancelled": "CANCELLED",
+
+      "placed": "PLACED",
+      "order_received": "PLACED",
+      "in_kitchen": "PREPARING",
+      "sent_to_delivery": "OUT_FOR_DELIVERY",
+
+      "Order Placed": "PLACED",
+      "Order Received": "PLACED",
+      "Confirmed": "CONFIRMED",
+      "In Kitchen": "PREPARING",
+      "Preparing": "PREPARING",
+      "Sent to Delivery": "OUT_FOR_DELIVERY",
+      "Out for Delivery": "OUT_FOR_DELIVERY",
+      "Delivered": "DELIVERED",
+      "Cancelled": "CANCELLED",
+
+      PLACED: "PLACED",
+      CONFIRMED: "CONFIRMED",
+      PREPARING: "PREPARING",
+      OUT_FOR_DELIVERY: "OUT_FOR_DELIVERY",
       DELIVERED: "DELIVERED",
       CANCELLED: "CANCELLED",
     };
 
-    const normalizedStatus = reverseStatusMap[status];
+    const normalizedStatus =
+      reverseStatusMap[status] ||
+      reverseStatusMap[status.toString().trim()] ||
+      reverseStatusMap[status.toString().trim().toLowerCase()];
 
-    if (!normalizedStatus || !ALLOWED_STATUSES.includes(normalizedStatus)) {
+    if (
+      !normalizedStatus ||
+      !ALLOWED_STATUSES.includes(normalizedStatus)
+    ) {
       return res.status(400).json({
         success: false,
-        message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(", ")}`,
+        message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(
+          ", "
+        )}`,
       });
     }
 
@@ -329,12 +448,18 @@ const updateOrderStatus = async (req, res) => {
     }
 
     order.orderStatus = normalizedStatus;
+
+    if (normalizedStatus === "DELIVERED") {
+      order.paymentStatus = "PAID";
+    }
+
     const updatedOrder = await order.save();
 
-    const populated = await Order.findById(updatedOrder._id).populate(
-      "user",
-      "name email"
-    );
+    const populated = await Order.findById(
+      updatedOrder._id
+    )
+      .populate("user", "name email")
+      .populate("items.product");
 
     return res.status(200).json({
       success: true,
@@ -343,6 +468,7 @@ const updateOrderStatus = async (req, res) => {
     });
   } catch (error) {
     console.error("Update order status error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to update order status.",

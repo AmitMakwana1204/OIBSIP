@@ -59,10 +59,11 @@ export default function AdminDashboard() {
   const salesOverview = data?.salesOverview || [];
   const lowStockAlerts = data?.lowStockAlerts || [];
   const statusCounts = data?.statusCounts || {
+    PLACED: 0,
+    CONFIRMED: 0,
+    PREPARING: 0,
+    OUT_FOR_DELIVERY: 0,
     DELIVERED: 0,
-    IN_KITCHEN: 0,
-    SENT_TO_DELIVERY: 0,
-    ORDER_RECEIVED: 0,
     CANCELLED: 0,
   };
 
@@ -86,21 +87,21 @@ export default function AdminDashboard() {
     },
     {
       label: "In Kitchen",
-      count: statusCounts.IN_KITCHEN || 0,
+      count: statusCounts.PREPARING || statusCounts.IN_KITCHEN || 0,
       icon: ChefHat,
       color: "text-orange-600",
       bg: "bg-orange-50",
     },
     {
-      label: "Sent to Delivery",
-      count: statusCounts.SENT_TO_DELIVERY || 0,
+      label: "Out for Delivery",
+      count: statusCounts.OUT_FOR_DELIVERY || statusCounts.SENT_TO_DELIVERY || 0,
       icon: Truck,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      label: "Order Received",
-      count: statusCounts.ORDER_RECEIVED || 0,
+      label: "New / Confirmed",
+      count: (statusCounts.PLACED || 0) + (statusCounts.CONFIRMED || 0) + (statusCounts.ORDER_RECEIVED || 0),
       icon: Clock3,
       color: "text-purple-600",
       bg: "bg-purple-50",

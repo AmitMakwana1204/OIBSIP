@@ -28,7 +28,7 @@ export default function Orders() {
       setLoading(true);
       const res = await getUserOrders();
       if (res.data?.success) {
-        setOrders(res.data.data || []);
+        setOrders(res.data.orders || res.data.data || []);
       }
     } catch (err) {
       console.error("Fetch user orders error:", err);
@@ -46,10 +46,14 @@ export default function Orders() {
 
   const getStatusStep = (status) => {
     switch (status) {
+      case "PLACED":
+      case "CONFIRMED":
       case "ORDER_RECEIVED":
         return 1;
+      case "PREPARING":
       case "IN_KITCHEN":
         return 2;
+      case "OUT_FOR_DELIVERY":
       case "SENT_TO_DELIVERY":
         return 3;
       case "DELIVERED":
@@ -61,19 +65,48 @@ export default function Orders() {
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "ORDER_RECEIVED":
-        return "ORDER RECEIVED";
+      case "PLACED":
+        return "ORDER PLACED";
+      case "CONFIRMED":
+        return "CONFIRMED";
+      case "PREPARING":
       case "IN_KITCHEN":
-        return "IN KITCHEN";
+        return "IN KITCHEN / PREPARING";
+      case "OUT_FOR_DELIVERY":
       case "SENT_TO_DELIVERY":
-        return "SENT TO DELIVERY";
+        return "OUT FOR DELIVERY";
       case "DELIVERED":
         return "DELIVERED";
       case "CANCELLED":
         return "CANCELLED";
       default:
-        return status || "PROCESSING";
+        return status || "PLACED";
     }
+  };
+
+  const getOrderItemsSummary = (order) => {
+    if (Array.isArray(order.items) && order.items.length > 0) {
+      return order.items.map((it) => `${it.name} × ${it.quantity}`).join(", ");
+    }
+    if (order.pizzaConfiguration?.base?.name) {
+      return `${order.pizzaConfiguration.base.name} (Custom Pizza)`;
+    }
+    return "Pizza";
+  };
+
+  const getOrderAddress = (order) => {
+    if (order.shippingAddress) {
+      const { address, city, pincode } = order.shippingAddress;
+      return [address, city, pincode].filter(Boolean).join(", ");
+    }
+    if (typeof order.deliveryAddress === "string") {
+      return order.deliveryAddress;
+    }
+    return order.deliveryAddress?.fullAddress || "221B Baker Street, Mumbai, Maharashtra 400001";
+  };
+
+  const getOrderAmount = (order) => {
+    return Number(order.total ?? order.totalAmount ?? 0);
   };
 
   return (
@@ -161,11 +194,11 @@ export default function Orders() {
                         </p>
 
                         <h2 className="font-black text-xl sm:text-2xl text-gray-950 mt-1">
-                          Order {latestOrder.orderId || `#PH${latestOrder._id.slice(-4)}`}
+                          Order {latestOrder.orderId || `#PH${latestOrder._id?.slice(-4)}`}
                         </h2>
 
                         <p className="text-sm text-gray-500 mt-1">
-                          {latestOrder.pizzaConfiguration?.base?.name || "Custom Pizza"} • ₹{latestOrder.totalAmount}
+                          {getOrderItemsSummary(latestOrder)} • ₹{getOrderAmount(latestOrder)}
                         </p>
                       </div>
                     </div>
@@ -238,10 +271,7 @@ export default function Orders() {
                       <div>
                         <p className="font-black">Delivery Address</p>
                         <p className="text-sm text-gray-500 mt-1">
-                          {typeof latestOrder.deliveryAddress === "string"
-                            ? latestOrder.deliveryAddress
-                            : latestOrder.deliveryAddress?.fullAddress ||
-                              "221B Baker Street, Mumbai, Maharashtra 400001"}
+                          {getOrderAddress(latestOrder)}
                         </p>
                       </div>
                     </div>
@@ -256,71 +286,71 @@ export default function Orders() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs font-black tracking-widest text-orange-400">
-                          ORDER SUMMARY
+                          ORDER ITEMS
                         </p>
-                        <h2 className="text-xl font-black mt-1">Your Pizza</h2>
+                        <h2 className="text-xl font-black mt-1">Order Summary</h2>
                       </div>
                       <ReceiptText size={23} className="text-gray-400" />
                     </div>
                   </div>
 
-                  <div className="p-5 sm:p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-200 to-orange-400 flex items-center justify-center text-4xl shadow-lg">
-                        🍕
+                  <div className="p-5 sm:p-6 space-y-4 max-h-[350px] overflow-y-auto">
+                    {Array.isArray(latestOrder.items) && latestOrder.items.length > 0 ? (
+                      latestOrder.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-3 border-b border-white/10 pb-3 last:border-0 last:pb-0">
+                          <img
+                            src={item.image || "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400"}
+                            alt={item.name}
+                            className="w-12 h-12 rounded-xl object-cover bg-white/10 shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.src = "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400";
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-sm truncate">{item.name}</p>
+                            <p className="text-xs text-gray-400">Qty: {item.quantity} × ₹{item.price}</p>
+                          </div>
+                          <span className="font-bold text-sm text-orange-400">
+                            ₹{(Number(item.price) || 0) * (Number(item.quantity) || 1)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-200 to-orange-400 flex items-center justify-center text-3xl shadow-lg">
+                          🍕
+                        </div>
+                        <div>
+                          <h3 className="font-black text-base">Custom Pizza</h3>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {latestOrder.pizzaConfiguration?.base?.name || "Classic Crust"}
+                          </p>
+                        </div>
                       </div>
+                    )}
 
-                      <div className="flex-1">
-                        <h3 className="font-black text-lg">Custom Pizza</h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {latestOrder.pizzaConfiguration?.base?.name || "Classic Crust"} •{" "}
-                          {latestOrder.pizzaConfiguration?.sauce?.name || "Classic Tomato"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {latestOrder.pizzaConfiguration?.cheese?.name || "Mozzarella"}
-                        </p>
-                      </div>
+                    <div className="border-t border-white/10 pt-4 space-y-2">
+                      {latestOrder.subtotal !== undefined && (
+                        <SummaryRow label="Subtotal" value={`₹${latestOrder.subtotal}`} />
+                      )}
+                      {latestOrder.deliveryFee !== undefined && (
+                        <SummaryRow label="Delivery Fee" value={latestOrder.deliveryFee === 0 ? "FREE" : `₹${latestOrder.deliveryFee}`} />
+                      )}
+                      {latestOrder.discount > 0 && (
+                        <SummaryRow label="Discount" value={`- ₹${latestOrder.discount}`} />
+                      )}
                     </div>
 
-                    <div className="mt-6 space-y-3">
-                      <SummaryRow
-                        label="Pizza Base"
-                        value={latestOrder.pizzaConfiguration?.base?.name || "Classic Crust"}
-                      />
-                      <SummaryRow
-                        label="Sauce"
-                        value={latestOrder.pizzaConfiguration?.sauce?.name || "Classic Tomato"}
-                      />
-                      <SummaryRow
-                        label="Cheese"
-                        value={latestOrder.pizzaConfiguration?.cheese?.name || "Mozzarella"}
-                      />
-                      <SummaryRow
-                        label="Toppings"
-                        value={
-                          latestOrder.pizzaConfiguration?.vegetables?.length
-                            ? latestOrder.pizzaConfiguration.vegetables
-                                .map((v) => v.name)
-                                .join(", ")
-                            : "None"
-                        }
-                      />
-                      <SummaryRow
-                        label="Quantity"
-                        value={`× ${latestOrder.quantity || 1}`}
-                      />
-                    </div>
-
-                    <div className="border-t border-white/10 mt-6 pt-5 flex justify-between items-end">
+                    <div className="border-t border-white/10 mt-4 pt-4 flex justify-between items-end">
                       <div>
-                        <p className="text-xs text-gray-500">TOTAL PAID</p>
-                        <p className="text-3xl font-black mt-1">
-                          ₹{latestOrder.totalAmount}
+                        <p className="text-xs text-gray-400">TOTAL AMOUNT</p>
+                        <p className="text-2xl font-black mt-1 text-white">
+                          ₹{getOrderAmount(latestOrder)}
                         </p>
                       </div>
 
-                      <span className="px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 text-xs font-bold">
-                        {latestOrder.paymentStatus || "PAID"}
+                      <span className="px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
+                        {latestOrder.paymentStatus || "PENDING"} ({latestOrder.paymentMethod || "COD"})
                       </span>
                     </div>
                   </div>
@@ -365,10 +395,10 @@ export default function Orders() {
                       </div>
                       <div>
                         <p className="font-black text-gray-950">
-                          {ord.orderId || `#PH${ord._id.slice(-4)}`}
+                          {ord.orderId || `#PH${ord._id?.slice(-4)}`}
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          {ord.pizzaConfiguration?.base?.name || "Custom Pizza"} • ₹{ord.totalAmount}
+                          {getOrderItemsSummary(ord)} • ₹{getOrderAmount(ord)}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
                           {new Date(ord.createdAt).toLocaleDateString("en-IN", {
@@ -399,7 +429,7 @@ export default function Orders() {
 function SummaryRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 text-sm">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-gray-400">{label}</span>
       <span className="font-semibold text-right text-gray-200">{value}</span>
     </div>
   );

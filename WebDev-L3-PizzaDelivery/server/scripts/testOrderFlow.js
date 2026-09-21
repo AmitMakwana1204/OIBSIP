@@ -76,19 +76,33 @@ async function runOrderTest() {
       method: "POST",
       headers: userHeaders,
       body: JSON.stringify({
-        pizzaConfiguration: {
-          base: { name: "Classic Crust", price: 0 },
-          sauce: { name: "Classic Tomato", price: 0 },
-          cheese: { name: "Mozzarella", price: 0 },
-          vegetables: [{ name: "Capsicum", price: 20 }],
+        items: [
+          {
+            name: "Classic Crust Pizza",
+            price: 219,
+            quantity: 1,
+            image: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400",
+          },
+        ],
+        customer: {
+          name: "Test Customer",
+          phone: "9876543210",
         },
-        quantity: 1,
-        totalAmount: 219,
+        shippingAddress: {
+          address: "123 Main St",
+          city: "Mumbai",
+          pincode: "400001",
+        },
+        paymentMethod: "COD",
+        subtotal: 219,
+        deliveryFee: 0,
+        discount: 0,
+        total: 219,
       }),
     });
 
-    const placedOrder = orderRes.data.data;
-    console.log(`✅ Order placed! ID: ${placedOrder.orderId}, Status: ${placedOrder.orderStatus}, Amount: ₹${placedOrder.totalAmount}`);
+    const placedOrder = orderRes.data.order || orderRes.data.data;
+    console.log(`✅ Order placed! ID: ${placedOrder.orderId}, Status: ${placedOrder.orderStatus}, Amount: ₹${placedOrder.total}`);
 
     // 3. Verify inventory was automatically decremented in MongoDB!
     const invAfter = await request("/inventory", { headers: adminHeaders });
