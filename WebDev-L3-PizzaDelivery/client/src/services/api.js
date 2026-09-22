@@ -15,11 +15,21 @@ const api = axios.create({
 // =========================
 api.interceptors.request.use(
   (config) => {
-    // Check for admin token first if requesting admin or inventory endpoints, otherwise user token
-    const adminToken = localStorage.getItem("pizzahub_admin_token");
-    const userToken = localStorage.getItem("pizzahub_token");
+    // Check for admin token first if requesting admin or inventory
+    // endpoints, otherwise use user token.
+    const adminToken = localStorage.getItem(
+      "pizzahub_admin_token"
+    );
 
-    const token = config.url?.startsWith("/admin") || config.url?.startsWith("/inventory")
+    const userToken = localStorage.getItem(
+      "pizzahub_token"
+    );
+
+    const isAdminRequest =
+      config.url?.startsWith("/admin") ||
+      config.url?.startsWith("/inventory");
+
+    const token = isAdminRequest
       ? adminToken || userToken
       : userToken || adminToken;
 
@@ -39,17 +49,32 @@ api.interceptors.request.use(
 // =========================
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
     if (error.response) {
       const { status, config } = error.response;
 
       if (status === 401) {
-        if (config.url?.startsWith("/admin") || config.url?.startsWith("/inventory")) {
-          localStorage.removeItem("pizzahub_admin_token");
-          localStorage.removeItem("pizzahub_admin_user");
+        const isAdminRequest =
+          config.url?.startsWith("/admin") ||
+          config.url?.startsWith("/inventory");
+
+        if (isAdminRequest) {
+          localStorage.removeItem(
+            "pizzahub_admin_token"
+          );
+
+          localStorage.removeItem(
+            "pizzahub_admin_user"
+          );
         } else {
-          localStorage.removeItem("pizzahub_token");
-          localStorage.removeItem("pizzahub_user");
+          localStorage.removeItem(
+            "pizzahub_token"
+          );
+
+          localStorage.removeItem(
+            "pizzahub_user"
+          );
         }
       }
 
@@ -57,7 +82,9 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(
-      new Error("Unable to connect to server. Please check your connection.")
+      new Error(
+        "Unable to connect to server. Please check your connection."
+      )
     );
   }
 );
@@ -65,43 +92,144 @@ api.interceptors.response.use(
 // =========================
 // AUTH API FUNCTIONS
 // =========================
-export const registerUser = (data) => api.post("/auth/register", data);
-export const loginUser = (data) => api.post("/auth/login", data);
-export const verifyEmailToken = (token) => api.get(`/auth/verify-email?token=${token}`);
-export const forgotPasswordRequest = (data) => api.post("/auth/forgot-password", data);
-export const resetPasswordRequest = (token, data) => api.post(`/auth/reset-password/${token}`, data);
+
+export const registerUser = (data) =>
+  api.post("/auth/register", data);
+
+export const loginUser = (data) =>
+  api.post("/auth/login", data);
+
+export const verifyEmailToken = (token) =>
+  api.get(
+    `/auth/verify-email?token=${token}`
+  );
+
+export const forgotPasswordRequest = (data) =>
+  api.post(
+    "/auth/forgot-password",
+    data
+  );
+
+export const resetPasswordRequest = (
+  token,
+  data
+) =>
+  api.post(
+    `/auth/reset-password/${token}`,
+    data
+  );
 
 // =========================
 // ADMIN AUTH API
 // =========================
-export const adminLoginApi = (data) => api.post("/admin/login", data);
+
+export const adminLoginApi = (data) =>
+  api.post("/admin/login", data);
 
 // =========================
 // ADMIN DASHBOARD API
 // =========================
-export const getAdminDashboardStats = () => api.get("/admin/dashboard");
+
+export const getAdminDashboardStats = () =>
+  api.get("/admin/dashboard");
 
 // =========================
 // ADMIN INVENTORY APIs
 // =========================
-export const getAdminInventory = () => api.get("/inventory");
-export const getAdminInventoryItem = (id) => api.get(`/inventory/${id}`);
-export const createAdminInventory = (data) => api.post("/inventory", data);
-export const updateAdminInventory = (id, data) => api.patch(`/inventory/${id}`, data);
-export const updateAdminInventoryStock = (id, stock) => api.patch(`/inventory/${id}/stock`, { stock });
-export const deleteAdminInventory = (id) => api.delete(`/inventory/${id}`);
+
+export const getAdminInventory = () =>
+  api.get("/inventory");
+
+export const getAdminInventoryItem = (id) =>
+  api.get(`/inventory/${id}`);
+
+export const createAdminInventory = (data) =>
+  api.post("/inventory", data);
+
+export const updateAdminInventory = (
+  id,
+  data
+) =>
+  api.patch(
+    `/inventory/${id}`,
+    data
+  );
+
+export const updateAdminInventoryStock = (
+  id,
+  stock
+) =>
+  api.patch(
+    `/inventory/${id}/stock`,
+    { stock }
+  );
+
+export const deleteAdminInventory = (id) =>
+  api.delete(`/inventory/${id}`);
 
 // =========================
 // ADMIN ORDERS APIs
 // =========================
-export const getAdminOrders = () => api.get("/admin/orders");
-export const getAdminOrderDetails = (id) => api.get(`/admin/orders/${id}`);
-export const updateAdminOrderStatus = (id, status) => api.patch(`/admin/orders/${id}/status`, { status });
+
+export const getAdminOrders = () =>
+  api.get("/admin/orders");
+
+export const getAdminOrderDetails = (id) =>
+  api.get(`/admin/orders/${id}`);
+
+export const updateAdminOrderStatus = (
+  id,
+  status
+) =>
+  api.patch(
+    `/admin/orders/${id}/status`,
+    { status }
+  );
 
 // =========================
 // USER ORDER APIs
 // =========================
-export const createUserOrder = (data) => api.post("/orders", data);
-export const getUserOrders = () => api.get("/orders/my-orders");
+
+export const createUserOrder = (data) =>
+  api.post("/orders", data);
+
+export const getUserOrders = () =>
+  api.get("/orders/my-orders");
+
+// =========================
+// CANCEL USER ORDER
+// =========================
+// IMPORTANT:
+// This function expects MongoDB Order _id.
+// Example:
+// 6ab256bdf6aabbee893b8bb0
+//
+// Do NOT pass display order ID like:
+// #PH623322
+// =========================
+
+export const cancelUserOrder = (mongoOrderId) => {
+  if (!mongoOrderId) {
+    return Promise.reject(
+      new Error("MongoDB Order ID is required")
+    );
+  }
+
+  const encodedOrderId =
+    encodeURIComponent(String(mongoOrderId));
+
+  console.log(
+    "CANCEL USER ORDER API:",
+    `/orders/my-orders/${encodedOrderId}/cancel`
+  );
+
+  return api.put(
+    `/orders/my-orders/${encodedOrderId}/cancel`
+  );
+};
+
+// =========================
+// DEFAULT EXPORT
+// =========================
 
 export default api;

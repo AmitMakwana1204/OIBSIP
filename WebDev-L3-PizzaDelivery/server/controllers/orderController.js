@@ -1,10 +1,13 @@
+
 const mongoose = require("mongoose");
+
 const Order = require("../models/Order");
 const Inventory = require("../models/Inventory");
 
 // ==========================================
 // ORDER STATUS
 // ==========================================
+
 const ALLOWED_STATUSES = [
   "PLACED",
   "CONFIRMED",
@@ -27,6 +30,7 @@ const STATUS_MAP = {
 // CREATE USER ORDER
 // POST /api/orders
 // ==========================================
+
 const createOrder = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -118,12 +122,7 @@ const createOrder = async (req, res) => {
     });
 
     // ==========================================
-    // INVENTORY
-    // ==========================================
-    //
-    // Inventory decrement is kept only when
-    // matching inventory items are found.
-    //
+    // INVENTORY CHECK
     // ==========================================
 
     for (const item of normalizedItems) {
@@ -200,7 +199,6 @@ const createOrder = async (req, res) => {
       },
 
       paymentMethod,
-
       paymentStatus,
 
       orderStatus: "PLACED",
@@ -215,10 +213,9 @@ const createOrder = async (req, res) => {
     // POPULATE USER
     // ==========================================
 
-    const populatedOrder = await Order.findById(newOrder._id).populate(
-      "user",
-      "name email"
-    );
+    const populatedOrder = await Order.findById(
+      newOrder._id
+    ).populate("user", "name email");
 
     // ==========================================
     // RESPONSE
@@ -248,6 +245,7 @@ const createOrder = async (req, res) => {
 // GET USER ORDERS
 // GET /api/orders/my-orders
 // ==========================================
+
 const getUserOrders = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -282,9 +280,136 @@ const getUserOrders = async (req, res) => {
 };
 
 // ==========================================
+// USER: CANCEL ORDER
+// PUT /api/orders/my-orders/:orderId/cancel
+// ==========================================
+
+const cancelUserOrder = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required.",
+      });
+    }
+
+    // ==========================================
+    // FIND USER'S ORDER
+    // ==========================================
+
+    const order = await Order.findOne({
+      orderId,
+      user: userId,
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found.",
+      });
+    }
+
+    // ==========================================
+    // CHECK CANCELLATION STATUS
+    // ==========================================
+
+    if (!["PLACED", "CONFIRMED"].includes(order.orderStatus)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
+      });
+    }
+
+    // ==========================================
+    // RESTORE INVENTORY
+    // ==========================================
+    // Since inventory was decreased when order was created,
+    // restore the quantity when user cancels the order.
+
+    for (const item of order.items) {
+      const inventoryItem = await Inventory.findOne({
+        name: {
+          $regex: new RegExp(
+            `^${(item.name || "").replace(
+              /[.*+?^${}()|[\]\\]/g,
+              "\\$&"
+            )}$`,
+            "i"
+          ),
+        },
+      });
+
+      if (inventoryItem) {
+        inventoryItem.stock += Number(item.quantity) || 0;
+
+        await inventoryItem.save();
+      }
+    }
+
+    // ==========================================
+    // UPDATE ORDER STATUS
+    // ==========================================
+
+    order.orderStatus = "CANCELLED";
+
+    // COD / unpaid order
+    if (order.paymentStatus !== "PAID") {
+      order.paymentStatus = "CANCELLED";
+    }
+
+    const updatedOrder = await order.save();
+
+    // ==========================================
+    // POPULATE UPDATED ORDER
+    // ==========================================
+
+    const populatedOrder = await Order.findById(
+      updatedOrder._id
+    )
+      .populate("user", "name email")
+      .populate("items.product");
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled successfully.",
+      order: populatedOrder,
+      data: populatedOrder,
+    });
+  } catch (error) {
+    console.error("Cancel user order error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to cancel order.",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
+    });
+  }
+};
+
+// ==========================================
 // ADMIN: GET ALL ORDERS
 // GET /api/admin/orders
 // ==========================================
+
 const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
@@ -297,15 +422,26 @@ const getAllOrders = async (req, res) => {
 
       id:
         order.orderId ||
-        `#PH${order._id.toString().slice(-6).toUpperCase()}`,
+        `#PH${order._id
+          .toString()
+          .slice(-6)
+          .toUpperCase()}`,
 
-      customer: order.customer?.name || order.user?.name || "Customer",
+      customer:
+        order.customer?.name ||
+        order.user?.name ||
+        "Customer",
 
-      email: order.user?.email || "customer@pizzahub.com",
+      email:
+        order.user?.email ||
+        "customer@pizzahub.com",
 
       pizza:
         order.items
-          ?.map((item) => `${item.name} x${item.quantity}`)
+          ?.map(
+            (item) =>
+              `${item.name} x${item.quantity}`
+          )
           .join(", ") || "Pizza",
 
       amount: order.total,
@@ -315,7 +451,8 @@ const getAllOrders = async (req, res) => {
       paymentMethod: order.paymentMethod,
 
       status:
-        STATUS_MAP[order.orderStatus] || order.orderStatus,
+        STATUS_MAP[order.orderStatus] ||
+        order.orderStatus,
 
       rawStatus: order.orderStatus,
 
@@ -345,6 +482,7 @@ const getAllOrders = async (req, res) => {
 // ADMIN: GET SINGLE ORDER
 // GET /api/admin/orders/:id
 // ==========================================
+
 const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -376,6 +514,7 @@ const getOrderById = async (req, res) => {
 // ADMIN: UPDATE ORDER STATUS
 // PATCH /api/admin/orders/:id/status
 // ==========================================
+
 const updateOrderStatus = async (req, res) => {
   try {
     let { status } = req.body;
@@ -390,28 +529,27 @@ const updateOrderStatus = async (req, res) => {
     const reverseStatusMap = {
       "order placed": "PLACED",
       "order received": "PLACED",
-      "confirmed": "CONFIRMED",
+      confirmed: "CONFIRMED",
       "in kitchen": "PREPARING",
-      "preparing": "PREPARING",
+      preparing: "PREPARING",
       "sent to delivery": "OUT_FOR_DELIVERY",
       "out for delivery": "OUT_FOR_DELIVERY",
-      "delivered": "DELIVERED",
-      "cancelled": "CANCELLED",
-
-      "placed": "PLACED",
-      "order_received": "PLACED",
-      "in_kitchen": "PREPARING",
-      "sent_to_delivery": "OUT_FOR_DELIVERY",
+      delivered: "DELIVERED",
+      cancelled: "CANCELLED",
+      placed: "PLACED",
+      order_received: "PLACED",
+      in_kitchen: "PREPARING",
+      sent_to_delivery: "OUT_FOR_DELIVERY",
 
       "Order Placed": "PLACED",
       "Order Received": "PLACED",
-      "Confirmed": "CONFIRMED",
+      Confirmed: "CONFIRMED",
       "In Kitchen": "PREPARING",
-      "Preparing": "PREPARING",
+      Preparing: "PREPARING",
       "Sent to Delivery": "OUT_FOR_DELIVERY",
       "Out for Delivery": "OUT_FOR_DELIVERY",
-      "Delivered": "DELIVERED",
-      "Cancelled": "CANCELLED",
+      Delivered: "DELIVERED",
+      Cancelled: "CANCELLED",
 
       PLACED: "PLACED",
       CONFIRMED: "CONFIRMED",
@@ -424,7 +562,9 @@ const updateOrderStatus = async (req, res) => {
     const normalizedStatus =
       reverseStatusMap[status] ||
       reverseStatusMap[status.toString().trim()] ||
-      reverseStatusMap[status.toString().trim().toLowerCase()];
+      reverseStatusMap[
+        status.toString().trim().toLowerCase()
+      ];
 
     if (
       !normalizedStatus ||
@@ -438,6 +578,10 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // ==========================================
+    // FIND ORDER
+    // ==========================================
+
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -447,6 +591,10 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // ==========================================
+    // UPDATE STATUS
+    // ==========================================
+
     order.orderStatus = normalizedStatus;
 
     if (normalizedStatus === "DELIVERED") {
@@ -455,11 +603,19 @@ const updateOrderStatus = async (req, res) => {
 
     const updatedOrder = await order.save();
 
+    // ==========================================
+    // POPULATE UPDATED ORDER
+    // ==========================================
+
     const populated = await Order.findById(
       updatedOrder._id
     )
       .populate("user", "name email")
       .populate("items.product");
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
 
     return res.status(200).json({
       success: true,
@@ -476,9 +632,14 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+// ==========================================
+// EXPORTS
+// ==========================================
+
 module.exports = {
   createOrder,
   getUserOrders,
+  cancelUserOrder,
   getAllOrders,
   getOrderById,
   updateOrderStatus,

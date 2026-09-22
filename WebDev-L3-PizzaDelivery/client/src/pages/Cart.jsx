@@ -16,6 +16,7 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import OrderSuccess from "./OrderSuccess";
 
 const CART_KEY = "pizzaCart";
 

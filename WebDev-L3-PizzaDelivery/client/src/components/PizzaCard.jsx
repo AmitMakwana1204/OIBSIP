@@ -130,27 +130,15 @@ export default function PizzaCard({
 
         </div>
 
-        <div className="grid grid-cols-[1fr_auto] gap-2 mt-5">
-
-          <Link
-            to="/pizza-builder"
-            state={{ pizza }}
-            className="bg-gray-900 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-red-600 transition"
-          >
-            Customize
-            <ArrowRight size={16} />
-          </Link>
-
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            className="w-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center hover:bg-red-600 hover:text-white transition"
-            title="Add to Cart"
-          >
-            <Plus size={20} />
-          </button>
-
-        </div>
+        <div className="mt-5">
+         <button
+           type="button"
+           onClick={handleAddToCart}
+           className="w-full bg-red-600 text-white py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-md shadow-red-100"
+         >
+           Add to Cart
+         </button>
+       </div>
 
       </div>
     </div>

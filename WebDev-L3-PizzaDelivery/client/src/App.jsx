@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Auth
 import { AuthProvider } from "./context/AuthContext";
@@ -16,16 +16,16 @@ import PizzaBuilder from "./pages/PizzaBuilder";
 import OrderSummary from "./pages/OrderSummary";
 import Orders from "./pages/Orders";
 import Cart from "./pages/Cart";
-import VerifyEmail from "./pages/VerifyEmail"; 
-import Checkout from "./pages/Checkout"; 
-import OrderSuccess from "./pages/OrderSuccess";  
+import VerifyEmail from "./pages/VerifyEmail";
+import Checkout from "./pages/Checkout";
+import OrderSuccess from "./pages/OrderSuccess";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Inventory from "./pages/admin/Inventory";
 import AdminOrders from "./pages/admin/AdminOrders";
-import AdminIngredients from "./pages/admin/AdminIngredients"; 
+import AdminIngredients from "./pages/admin/AdminIngredients";
 import AdminPizzas from "./pages/admin/AdminPizzas";
 
 function App() {
@@ -38,15 +38,9 @@ function App() {
 
           <Route path="/" element={<Home />} />
 
-          <Route
-            path="/login"
-            element={<Login />}
-          />
+          <Route path="/login" element={<Login />} />
 
-          <Route
-            path="/register"
-            element={<Register />}
-          />
+          <Route path="/register" element={<Register />} />
 
           <Route
             path="/forgot-password"
@@ -59,11 +53,11 @@ function App() {
           />
 
           <Route
-           path="/verify-email"
-           element={<VerifyEmail />} 
+            path="/verify-email"
+            element={<VerifyEmail />}
           />
 
-          {/* ================= PROTECTED USER ROUTES ================= */}
+          {/* ================= USER PROTECTED ROUTES ================= */}
 
           <Route
             path="/dashboard"
@@ -109,6 +103,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/checkout"
             element={
@@ -117,14 +112,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
-            path="/order-success/:orderId"
+            path="/order-success"
             element={
               <ProtectedRoute>
                 <OrderSuccess />
               </ProtectedRoute>
             }
           />
+
           {/* ================= ADMIN ROUTES ================= */}
 
           <Route
@@ -167,6 +164,7 @@ function App() {
               </AdminProtectedRoute>
             }
           />
+
           <Route
             path="/admin/menu"
             element={
@@ -175,6 +173,14 @@ function App() {
               </AdminProtectedRoute>
             }
           />
+
+          {/* ================= 404 ================= */}
+
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
+
         </Routes>
       </AuthProvider>
     </BrowserRouter>
