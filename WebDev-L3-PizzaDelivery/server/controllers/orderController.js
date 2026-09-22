@@ -287,6 +287,15 @@ const getUserOrders = async (req, res) => {
 const cancelUserOrder = async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
+    const { orderId } = req.params;
+
+    console.log("========== CANCEL DEBUG ==========");
+    console.log("req.params:", req.params);
+    console.log("orderId:", orderId);
+    console.log("req.user:", req.user);
+    console.log("userId:", userId);
+    console.log("user._id:", req.user?._id);
+    console.log("=================================");
 
     if (!userId) {
       return res.status(401).json({
@@ -295,8 +304,6 @@ const cancelUserOrder = async (req, res) => {
       });
     }
 
-    const { orderId } = req.params;
-
     if (!orderId) {
       return res.status(400).json({
         success: false,
@@ -304,19 +311,39 @@ const cancelUserOrder = async (req, res) => {
       });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid MongoDB order ID.",
+      });
+    }
+
     // ==========================================
-    // FIND USER'S ORDER
+    // FIND ORDER BY MONGODB ID, THEN VERIFY OWNERSHIP
     // ==========================================
 
-    const order = await Order.findOne({
-      orderId,
-      user: userId,
-    });
+    const orderById = await Order.findById(orderId);
 
-    if (!order) {
+    console.log("ORDER BY ID:", orderById);
+
+    if (!orderById) {
       return res.status(404).json({
         success: false,
         message: "Order not found.",
+      });
+    }
+
+    const order = await Order.findOne({
+      _id: orderId,
+      user: userId,
+    });
+
+    console.log("ORDER WITH USER:", order);
+
+    if (!order) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to cancel this order.",
       });
     }
 
@@ -332,13 +359,32 @@ const cancelUserOrder = async (req, res) => {
       });
     }
 
+      // Claim the transition atomically so a repeated request cannot restore stock twice.
+      const cancelledOrder = await Order.findOneAndUpdate(
+        {
+          _id: orderId,
+          user: userId,
+          orderStatus: { $in: ["PLACED", "CONFIRMED"] },
+        },
+        { $set: { orderStatus: "CANCELLED" } },
+        { returnDocument: "after", runValidators: true }
+      );
+
+      if (!cancelledOrder) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
+        });
+      }
+
     // ==========================================
     // RESTORE INVENTORY
     // ==========================================
     // Since inventory was decreased when order was created,
     // restore the quantity when user cancels the order.
 
-    for (const item of order.items) {
+    for (const item of cancelledOrder.items) {
       const inventoryItem = await Inventory.findOne({
         name: {
           $regex: new RegExp(
@@ -359,24 +405,11 @@ const cancelUserOrder = async (req, res) => {
     }
 
     // ==========================================
-    // UPDATE ORDER STATUS
-    // ==========================================
-
-    order.orderStatus = "CANCELLED";
-
-    // COD / unpaid order
-    if (order.paymentStatus !== "PAID") {
-      order.paymentStatus = "CANCELLED";
-    }
-
-    const updatedOrder = await order.save();
-
-    // ==========================================
     // POPULATE UPDATED ORDER
     // ==========================================
 
     const populatedOrder = await Order.findById(
-      updatedOrder._id
+      cancelledOrder._id
     )
       .populate("user", "name email")
       .populate("items.product");

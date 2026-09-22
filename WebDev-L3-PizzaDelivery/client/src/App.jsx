@@ -1,12 +1,24 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 
-// Auth
+// =========================================================
+// AUTH
+// =========================================================
+
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
-// User Pages
+// =========================================================
+// USER PAGES
+// =========================================================
+
 import Home from "./pages/Home";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -20,7 +32,10 @@ import VerifyEmail from "./pages/VerifyEmail";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 
-// Admin Pages
+// =========================================================
+// ADMIN PAGES
+// =========================================================
+
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Inventory from "./pages/admin/Inventory";
@@ -32,15 +47,27 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+
         <Routes>
 
-          {/* ================= PUBLIC ROUTES ================= */}
+          {/* =================================================
+              PUBLIC ROUTES
+          ================================================== */}
 
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={<Home />}
+          />
 
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-          <Route path="/register" element={<Register />} />
+          <Route
+            path="/register"
+            element={<Register />}
+          />
 
           <Route
             path="/forgot-password"
@@ -57,7 +84,11 @@ function App() {
             element={<VerifyEmail />}
           />
 
-          {/* ================= USER PROTECTED ROUTES ================= */}
+          {/* =================================================
+              USER PROTECTED ROUTES
+          ================================================== */}
+
+          {/* Dashboard */}
 
           <Route
             path="/dashboard"
@@ -68,6 +99,19 @@ function App() {
             }
           />
 
+          {/* Profile */}
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Pizza Builder */}
+
           <Route
             path="/pizza-builder"
             element={
@@ -76,6 +120,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Order Summary */}
 
           <Route
             path="/order-summary"
@@ -86,6 +132,8 @@ function App() {
             }
           />
 
+          {/* Orders */}
+
           <Route
             path="/orders"
             element={
@@ -94,6 +142,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Cart */}
 
           <Route
             path="/cart"
@@ -104,6 +154,8 @@ function App() {
             }
           />
 
+          {/* Checkout */}
+
           <Route
             path="/checkout"
             element={
@@ -112,6 +164,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Order Success */}
 
           <Route
             path="/order-success"
@@ -122,12 +176,18 @@ function App() {
             }
           />
 
-          {/* ================= ADMIN ROUTES ================= */}
+          {/* =================================================
+              ADMIN ROUTES
+          ================================================== */}
+
+          {/* Admin Login */}
 
           <Route
             path="/admin/login"
             element={<AdminLogin />}
           />
+
+          {/* Admin Dashboard */}
 
           <Route
             path="/admin/dashboard"
@@ -138,6 +198,8 @@ function App() {
             }
           />
 
+          {/* Admin Inventory */}
+
           <Route
             path="/admin/inventory"
             element={
@@ -146,6 +208,8 @@ function App() {
               </AdminProtectedRoute>
             }
           />
+
+          {/* Admin Orders */}
 
           <Route
             path="/admin/orders"
@@ -156,6 +220,8 @@ function App() {
             }
           />
 
+          {/* Admin Ingredients */}
+
           <Route
             path="/admin/ingredients"
             element={
@@ -164,6 +230,8 @@ function App() {
               </AdminProtectedRoute>
             }
           />
+
+          {/* Admin Menu / Pizzas */}
 
           <Route
             path="/admin/menu"
@@ -174,14 +242,22 @@ function App() {
             }
           />
 
-          {/* ================= 404 ================= */}
+          {/* =================================================
+              404 / UNKNOWN ROUTE
+          ================================================== */}
 
           <Route
             path="*"
-            element={<Navigate to="/" replace />}
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
           />
 
         </Routes>
+
       </AuthProvider>
     </BrowserRouter>
   );
