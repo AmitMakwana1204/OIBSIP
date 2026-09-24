@@ -1,5 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import AdminLayout from "./AdminLayout";
+
+import {
+  getIngredients,
+  createIngredient,
+  updateIngredient,
+  deleteIngredient,
+} from "..//../services/api";
 
 import {
   Plus,
@@ -19,7 +31,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/ingredients";
+// =========================================================
+// TYPE CONFIG
+// =========================================================
 
 const TYPE_CONFIG = {
   base: {
@@ -29,6 +43,7 @@ const TYPE_CONFIG = {
     text: "text-orange-600",
     border: "border-orange-100",
   },
+
   sauce: {
     label: "Sauce",
     icon: Droplets,
@@ -36,6 +51,7 @@ const TYPE_CONFIG = {
     text: "text-red-600",
     border: "border-red-100",
   },
+
   cheese: {
     label: "Cheese",
     icon: CircleDot,
@@ -43,6 +59,7 @@ const TYPE_CONFIG = {
     text: "text-yellow-600",
     border: "border-yellow-100",
   },
+
   topping: {
     label: "Topping",
     icon: Salad,
@@ -51,6 +68,10 @@ const TYPE_CONFIG = {
     border: "border-green-100",
   },
 };
+
+// =========================================================
+// EMPTY FORM
+// =========================================================
 
 const EMPTY_FORM = {
   name: "",
@@ -62,7 +83,15 @@ const EMPTY_FORM = {
   isAvailable: true,
 };
 
+// =========================================================
+// COMPONENT
+// =========================================================
+
 const AdminIngredients = () => {
+  // =======================================================
+  // STATE
+  // =======================================================
+
   const [ingredients, setIngredients] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -71,23 +100,32 @@ const AdminIngredients = () => {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] =
+    useState("all");
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingIngredient, setEditingIngredient] = useState(null);
+  const [showModal, setShowModal] =
+    useState(false);
 
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingIngredient, setEditingIngredient] =
+    useState(null);
+
+  const [form, setForm] =
+    useState(EMPTY_FORM);
 
   const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
+  const [deletingId, setDeletingId] =
+    useState(null);
 
-  const [notification, setNotification] = useState(null);
+  const [notification, setNotification] =
+    useState(null);
 
-  // --------------------------------------------------
+  // =======================================================
   // FETCH INGREDIENTS
-  // --------------------------------------------------
+  // =======================================================
 
-  const fetchIngredients = async (showRefreshLoader = false) => {
+  const fetchIngredients = async (
+    showRefreshLoader = false
+  ) => {
     try {
       if (showRefreshLoader) {
         setRefreshing(true);
@@ -97,33 +135,49 @@ const AdminIngredients = () => {
 
       setError("");
 
-      const response = await fetch(API_URL);
+      const response =
+        await getIngredients();
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch ingredients");
-      }
+      const list = Array.isArray(
+        response?.data?.ingredients
+      )
+        ? response.data.ingredients
+        : [];
 
-      const data = await response.json();
-
-      setIngredients(data.ingredients || []);
+      setIngredients(list);
     } catch (err) {
-      console.error("Fetch ingredients error:", err);
-      setError("Unable to load ingredients. Please check your server.");
+      console.error(
+        "Fetch ingredients error:",
+        err
+      );
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to load ingredients. Please check your server."
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // =======================================================
+  // INITIAL LOAD
+  // =======================================================
+
   useEffect(() => {
     fetchIngredients();
   }, []);
 
-  // --------------------------------------------------
+  // =======================================================
   // NOTIFICATION
-  // --------------------------------------------------
+  // =======================================================
 
-  const showNotification = (message, type = "success") => {
+  const showNotification = (
+    message,
+    type = "success"
+  ) => {
     setNotification({
       message,
       type,
@@ -134,9 +188,9 @@ const AdminIngredients = () => {
     }, 3000);
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // SUMMARY COUNTS
-  // --------------------------------------------------
+  // =======================================================
 
   const summary = useMemo(() => {
     return {
@@ -160,41 +214,55 @@ const AdminIngredients = () => {
     };
   }, [ingredients]);
 
-  // --------------------------------------------------
+  // =======================================================
   // FILTER
-  // --------------------------------------------------
+  // =======================================================
 
   const filteredIngredients = useMemo(() => {
-    return ingredients.filter((ingredient) => {
-      const matchesSearch =
-        ingredient.name
-          ?.toLowerCase()
-          .includes(search.toLowerCase()) ||
-        ingredient.description
-          ?.toLowerCase()
-          .includes(search.toLowerCase());
+    const searchValue =
+      search.trim().toLowerCase();
 
-      const matchesType =
-        typeFilter === "all" ||
-        ingredient.type === typeFilter;
+    return ingredients.filter(
+      (ingredient) => {
+        const matchesSearch =
+          ingredient.name
+            ?.toLowerCase()
+            .includes(searchValue) ||
+          ingredient.description
+            ?.toLowerCase()
+            .includes(searchValue);
 
-      return matchesSearch && matchesType;
-    });
-  }, [ingredients, search, typeFilter]);
+        const matchesType =
+          typeFilter === "all" ||
+          ingredient.type === typeFilter;
 
-  // --------------------------------------------------
+        return (
+          matchesSearch &&
+          matchesType
+        );
+      }
+    );
+  }, [
+    ingredients,
+    search,
+    typeFilter,
+  ]);
+
+  // =======================================================
   // OPEN ADD MODAL
-  // --------------------------------------------------
+  // =======================================================
 
   const handleAdd = () => {
     setEditingIngredient(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+    });
     setShowModal(true);
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // OPEN EDIT MODAL
-  // --------------------------------------------------
+  // =======================================================
 
   const handleEdit = (ingredient) => {
     setEditingIngredient(ingredient);
@@ -204,84 +272,148 @@ const AdminIngredients = () => {
       type: ingredient.type || "base",
       price: ingredient.price ?? "",
       icon: ingredient.icon || "🍕",
-      description: ingredient.description || "",
-      popular: Boolean(ingredient.popular),
-      isAvailable: ingredient.isAvailable !== false,
+      description:
+        ingredient.description || "",
+      popular: Boolean(
+        ingredient.popular
+      ),
+      isAvailable:
+        ingredient.isAvailable !== false,
     });
 
     setShowModal(true);
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // FORM CHANGE
-  // --------------------------------------------------
+  // =======================================================
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = e.target;
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]:
+        type === "checkbox"
+          ? checked
+          : value,
     }));
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // SAVE INGREDIENT
-  // --------------------------------------------------
+  // =======================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.name.trim()) {
-      showNotification("Ingredient name is required.", "error");
+    // -----------------------------------------------
+    // NAME VALIDATION
+    // -----------------------------------------------
+
+    const trimmedName =
+      form.name.trim();
+
+    if (!trimmedName) {
+      showNotification(
+        "Ingredient name is required.",
+        "error"
+      );
       return;
     }
 
-    if (form.price === "" || Number(form.price) < 0) {
-      showNotification("Please enter a valid price.", "error");
+    // -----------------------------------------------
+    // PRICE VALIDATION
+    // -----------------------------------------------
+
+    if (
+      form.price === "" ||
+      form.price === null ||
+      form.price === undefined ||
+      !Number.isFinite(
+        Number(form.price)
+      ) ||
+      Number(form.price) < 0
+    ) {
+      showNotification(
+        "Please enter a valid price.",
+        "error"
+      );
+      return;
+    }
+
+    // -----------------------------------------------
+    // TYPE VALIDATION
+    // -----------------------------------------------
+
+    const allowedTypes = [
+      "base",
+      "sauce",
+      "cheese",
+      "topping",
+    ];
+
+    if (!allowedTypes.includes(form.type)) {
+      showNotification(
+        "Please select a valid ingredient type.",
+        "error"
+      );
       return;
     }
 
     try {
       setSaving(true);
 
+      // ---------------------------------------------
+      // CLEAN PAYLOAD
+      // ---------------------------------------------
+
       const payload = {
-        name: form.name.trim(),
+        name: trimmedName,
         type: form.type,
         price: Number(form.price),
-        icon: form.icon || "🍕",
-        description: form.description.trim(),
-        popular: form.popular,
-        isAvailable: form.isAvailable,
+        icon:
+          form.icon?.trim() || "🍕",
+        description:
+          form.description?.trim() || "",
+        popular: Boolean(
+          form.popular
+        ),
+        isAvailable: Boolean(
+          form.isAvailable
+        ),
       };
 
-      const url = editingIngredient
-        ? `${API_URL}/${editingIngredient._id}`
-        : API_URL;
+      // ---------------------------------------------
+      // UPDATE
+      // ---------------------------------------------
 
-      const method = editingIngredient ? "PUT" : "POST";
+      if (editingIngredient?._id) {
+        const response =
+          await updateIngredient(
+            editingIngredient._id,
+            payload
+          );
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+        const updatedIngredient =
+          response?.data?.ingredient;
 
-      const data = await response.json();
+        if (!updatedIngredient) {
+          throw new Error(
+            "Updated ingredient data was not returned by server."
+          );
+        }
 
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Something went wrong"
-        );
-      }
-
-      if (editingIngredient) {
         setIngredients((prev) =>
           prev.map((item) =>
-            item._id === editingIngredient._id
-              ? data.ingredient
+            item._id ===
+            editingIngredient._id
+              ? updatedIngredient
               : item
           )
         );
@@ -289,9 +421,29 @@ const AdminIngredients = () => {
         showNotification(
           "Ingredient updated successfully."
         );
-      } else {
+      }
+
+      // ---------------------------------------------
+      // CREATE
+      // ---------------------------------------------
+
+      else {
+        const response =
+          await createIngredient(
+            payload
+          );
+
+        const createdIngredient =
+          response?.data?.ingredient;
+
+        if (!createdIngredient) {
+          throw new Error(
+            "Created ingredient data was not returned by server."
+          );
+        }
+
         setIngredients((prev) => [
-          data.ingredient,
+          createdIngredient,
           ...prev,
         ]);
 
@@ -300,14 +452,25 @@ const AdminIngredients = () => {
         );
       }
 
+      // ---------------------------------------------
+      // CLOSE
+      // ---------------------------------------------
+
       setShowModal(false);
       setEditingIngredient(null);
-      setForm(EMPTY_FORM);
+      setForm({
+        ...EMPTY_FORM,
+      });
     } catch (err) {
-      console.error("Save ingredient error:", err);
+      console.error(
+        "Save ingredient error:",
+        err
+      );
 
       showNotification(
-        err.message || "Failed to save ingredient.",
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to save ingredient.",
         "error"
       );
     } finally {
@@ -315,44 +478,60 @@ const AdminIngredients = () => {
     }
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // DELETE
-  // --------------------------------------------------
+  // =======================================================
 
   const handleDelete = async (id) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this ingredient?"
-    );
+    if (!id) {
+      showNotification(
+        "Ingredient ID is missing.",
+        "error"
+      );
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this ingredient?"
+      );
 
     if (!confirmed) return;
 
     try {
       setDeletingId(id);
 
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: "DELETE",
-      });
+      const response =
+        await deleteIngredient(id);
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (
+        response?.data?.success === false
+      ) {
         throw new Error(
-          data.message || "Failed to delete ingredient"
+          response?.data?.message ||
+            "Failed to delete ingredient."
         );
       }
 
       setIngredients((prev) =>
-        prev.filter((item) => item._id !== id)
+        prev.filter(
+          (item) => item._id !== id
+        )
       );
 
       showNotification(
         "Ingredient deleted successfully."
       );
     } catch (err) {
-      console.error("Delete ingredient error:", err);
+      console.error(
+        "Delete ingredient error:",
+        err
+      );
 
       showNotification(
-        err.message || "Failed to delete ingredient.",
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete ingredient.",
         "error"
       );
     } finally {
@@ -360,39 +539,44 @@ const AdminIngredients = () => {
     }
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // CLOSE MODAL
-  // --------------------------------------------------
+  // =======================================================
 
   const closeModal = () => {
     if (saving) return;
 
     setShowModal(false);
     setEditingIngredient(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+    });
   };
 
-  // --------------------------------------------------
+  // =======================================================
   // RENDER
-  // --------------------------------------------------
+  // =======================================================
 
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto space-y-7">
 
-        {/* -------------------------------------------- */}
-        {/* NOTIFICATION */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            NOTIFICATION
+        ================================================= */}
 
         {notification && (
           <div
+            role="alert"
             className={`fixed top-5 right-5 z-[100] flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg ${
-              notification.type === "error"
+              notification.type ===
+              "error"
                 ? "border-red-200 bg-red-50 text-red-700"
                 : "border-green-200 bg-green-50 text-green-700"
             }`}
           >
-            {notification.type === "error" ? (
+            {notification.type ===
+            "error" ? (
               <AlertCircle size={19} />
             ) : (
               <CheckCircle2 size={19} />
@@ -403,17 +587,21 @@ const AdminIngredients = () => {
             </span>
 
             <button
-              onClick={() => setNotification(null)}
+              type="button"
+              onClick={() =>
+                setNotification(null)
+              }
               className="ml-2"
+              aria-label="Close notification"
             >
               <X size={16} />
             </button>
           </div>
         )}
 
-        {/* -------------------------------------------- */}
-        {/* HEADER */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            HEADER
+        ================================================= */}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -426,27 +614,38 @@ const AdminIngredients = () => {
             </h1>
 
             <p className="mt-1 text-sm text-gray-500">
-              Manage pizza bases, sauces, cheeses and toppings.
+              Manage pizza bases, sauces,
+              cheeses and toppings.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
+            {/* REFRESH */}
+
             <button
-              onClick={() => fetchIngredients(true)}
+              type="button"
+              onClick={() =>
+                fetchIngredients(true)
+              }
               disabled={refreshing}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw
                 size={17}
                 className={
-                  refreshing ? "animate-spin" : ""
+                  refreshing
+                    ? "animate-spin"
+                    : ""
                 }
               />
 
               Refresh
             </button>
 
+            {/* ADD */}
+
             <button
+              type="button"
               onClick={handleAdd}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
             >
@@ -457,12 +656,11 @@ const AdminIngredients = () => {
           </div>
         </div>
 
-        {/* -------------------------------------------- */}
-        {/* SUMMARY CARDS */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            SUMMARY CARDS
+        ================================================= */}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
           <SummaryCard
             title="Bases"
             count={summary.base}
@@ -494,15 +692,13 @@ const AdminIngredients = () => {
             iconBg="bg-green-50"
             iconColor="text-green-600"
           />
-
         </div>
 
-        {/* -------------------------------------------- */}
-        {/* SEARCH + FILTER */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            SEARCH + FILTER
+        ================================================= */}
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
             {/* SEARCH */}
@@ -527,49 +723,67 @@ const AdminIngredients = () => {
             {/* FILTERS */}
 
             <div className="flex flex-wrap items-center gap-2">
-
               <FilterButton
-                active={typeFilter === "all"}
-                onClick={() => setTypeFilter("all")}
+                active={
+                  typeFilter === "all"
+                }
+                onClick={() =>
+                  setTypeFilter("all")
+                }
               >
                 All ({summary.total})
               </FilterButton>
 
               <FilterButton
-                active={typeFilter === "base"}
-                onClick={() => setTypeFilter("base")}
+                active={
+                  typeFilter === "base"
+                }
+                onClick={() =>
+                  setTypeFilter("base")
+                }
               >
                 Base ({summary.base})
               </FilterButton>
 
               <FilterButton
-                active={typeFilter === "sauce"}
-                onClick={() => setTypeFilter("sauce")}
+                active={
+                  typeFilter === "sauce"
+                }
+                onClick={() =>
+                  setTypeFilter("sauce")
+                }
               >
                 Sauce ({summary.sauce})
               </FilterButton>
 
               <FilterButton
-                active={typeFilter === "cheese"}
-                onClick={() => setTypeFilter("cheese")}
+                active={
+                  typeFilter === "cheese"
+                }
+                onClick={() =>
+                  setTypeFilter("cheese")
+                }
               >
                 Cheese ({summary.cheese})
               </FilterButton>
 
               <FilterButton
-                active={typeFilter === "topping"}
-                onClick={() => setTypeFilter("topping")}
+                active={
+                  typeFilter === "topping"
+                }
+                onClick={() =>
+                  setTypeFilter("topping")
+                }
               >
                 Topping ({summary.topping})
               </FilterButton>
-
             </div>
           </div>
         </div>
 
-        {/* -------------------------------------------- */}
-        {/* LOADING */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            LOADING
+        ================================================= */}
 
         {loading && (
           <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
@@ -584,9 +798,9 @@ const AdminIngredients = () => {
           </div>
         )}
 
-        {/* -------------------------------------------- */}
-        {/* ERROR */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
         {!loading && error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
@@ -604,7 +818,10 @@ const AdminIngredients = () => {
             </p>
 
             <button
-              onClick={() => fetchIngredients()}
+              type="button"
+              onClick={() =>
+                fetchIngredients()
+              }
               className="mt-5 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
             >
               Try Again
@@ -612,17 +829,19 @@ const AdminIngredients = () => {
           </div>
         )}
 
-        {/* -------------------------------------------- */}
-        {/* EMPTY */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            EMPTY
+        ================================================= */}
 
         {!loading &&
           !error &&
-          filteredIngredients.length === 0 && (
+          filteredIngredients.length ===
+            0 && (
             <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-                <UtensilsCrossed size={26} />
+                <UtensilsCrossed
+                  size={26}
+                />
               </div>
 
               <h3 className="mt-4 text-base font-semibold text-gray-900">
@@ -630,10 +849,12 @@ const AdminIngredients = () => {
               </h3>
 
               <p className="mt-1 text-sm text-gray-500">
-                Try changing your search or filter.
+                Try changing your search or
+                filter.
               </p>
 
               <button
+                type="button"
                 onClick={handleAdd}
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
               >
@@ -643,53 +864,56 @@ const AdminIngredients = () => {
             </div>
           )}
 
-        {/* -------------------------------------------- */}
-        {/* INGREDIENT GRID */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            INGREDIENT GRID
+        ================================================= */}
 
         {!loading &&
           !error &&
-          filteredIngredients.length > 0 && (
+          filteredIngredients.length >
+            0 && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-
-              {filteredIngredients.map((ingredient) => (
-                <IngredientCard
-                  key={ingredient._id}
-                  ingredient={ingredient}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  deletingId={deletingId}
-                />
-              ))}
-
+              {filteredIngredients.map(
+                (ingredient) => (
+                  <IngredientCard
+                    key={ingredient._id}
+                    ingredient={ingredient}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    deletingId={deletingId}
+                  />
+                )
+              )}
             </div>
           )}
 
-        {/* -------------------------------------------- */}
-        {/* RESULT COUNT */}
-        {/* -------------------------------------------- */}
+        {/* =================================================
+            RESULT COUNT
+        ================================================= */}
 
-        {!loading && !error && ingredients.length > 0 && (
-          <p className="text-center text-xs text-gray-400">
-            Showing {filteredIngredients.length} of{" "}
-            {ingredients.length} ingredients
-          </p>
-        )}
+        {!loading &&
+          !error &&
+          ingredients.length > 0 && (
+            <p className="text-center text-xs text-gray-400">
+              Showing{" "}
+              {filteredIngredients.length}{" "}
+              of {ingredients.length}{" "}
+              ingredients
+            </p>
+          )}
       </div>
 
-      {/* ---------------------------------------------- */}
-      {/* ADD / EDIT MODAL */}
-      {/* ---------------------------------------------- */}
+      {/* =================================================
+          ADD / EDIT MODAL
+      ================================================= */}
 
       {showModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-
           <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
 
             {/* MODAL HEADER */}
 
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
-
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-red-600">
                   Ingredient Management
@@ -703,8 +927,11 @@ const AdminIngredients = () => {
               </div>
 
               <button
+                type="button"
                 onClick={closeModal}
-                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                disabled={saving}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Close modal"
               >
                 <X size={20} />
               </button>
@@ -716,11 +943,9 @@ const AdminIngredients = () => {
               onSubmit={handleSubmit}
               className="space-y-5 p-6"
             >
-
               {/* NAME + ICON */}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_100px]">
-
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Ingredient Name
@@ -732,6 +957,7 @@ const AdminIngredients = () => {
                     value={form.name}
                     onChange={handleChange}
                     placeholder="e.g. Mozzarella"
+                    maxLength={100}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                     required
                   />
@@ -748,16 +974,15 @@ const AdminIngredients = () => {
                     value={form.icon}
                     onChange={handleChange}
                     placeholder="🍕"
+                    maxLength={10}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-xl outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                   />
                 </div>
-
               </div>
 
               {/* TYPE + PRICE */}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-gray-700">
                     Type
@@ -769,10 +994,21 @@ const AdminIngredients = () => {
                     onChange={handleChange}
                     className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100"
                   >
-                    <option value="base">Base</option>
-                    <option value="sauce">Sauce</option>
-                    <option value="cheese">Cheese</option>
-                    <option value="topping">Topping</option>
+                    <option value="base">
+                      Base
+                    </option>
+
+                    <option value="sauce">
+                      Sauce
+                    </option>
+
+                    <option value="cheese">
+                      Cheese
+                    </option>
+
+                    <option value="topping">
+                      Topping
+                    </option>
                   </select>
                 </div>
 
@@ -790,6 +1026,7 @@ const AdminIngredients = () => {
                       type="number"
                       name="price"
                       min="0"
+                      step="0.01"
                       value={form.price}
                       onChange={handleChange}
                       placeholder="0"
@@ -798,7 +1035,6 @@ const AdminIngredients = () => {
                     />
                   </div>
                 </div>
-
               </div>
 
               {/* DESCRIPTION */}
@@ -813,6 +1049,7 @@ const AdminIngredients = () => {
                   value={form.description}
                   onChange={handleChange}
                   rows={3}
+                  maxLength={500}
                   placeholder="Short ingredient description..."
                   className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-red-300 focus:ring-2 focus:ring-red-100"
                 />
@@ -822,8 +1059,9 @@ const AdminIngredients = () => {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                {/* POPULAR */}
 
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <Star
                       size={18}
@@ -850,8 +1088,9 @@ const AdminIngredients = () => {
                   />
                 </label>
 
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                {/* AVAILABLE */}
 
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <div className="flex items-center gap-3">
                     {form.isAvailable ? (
                       <CheckCircle2
@@ -879,18 +1118,18 @@ const AdminIngredients = () => {
                   <input
                     type="checkbox"
                     name="isAvailable"
-                    checked={form.isAvailable}
+                    checked={
+                      form.isAvailable
+                    }
                     onChange={handleChange}
                     className="h-4 w-4 accent-red-600"
                   />
                 </label>
-
               </div>
 
               {/* ACTIONS */}
 
               <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-5">
-
                 <button
                   type="button"
                   onClick={closeModal}
@@ -916,7 +1155,6 @@ const AdminIngredients = () => {
                     ? "Update Ingredient"
                     : "Add Ingredient"}
                 </button>
-
               </div>
             </form>
           </div>
@@ -926,9 +1164,9 @@ const AdminIngredients = () => {
   );
 };
 
-// ======================================================
+// =========================================================
 // SUMMARY CARD
-// ======================================================
+// =========================================================
 
 const SummaryCard = ({
   title,
@@ -939,9 +1177,7 @@ const SummaryCard = ({
 }) => {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-
       <div className="flex items-center justify-between">
-
         <div>
           <p className="text-sm font-medium text-gray-500">
             {title}
@@ -957,15 +1193,14 @@ const SummaryCard = ({
         >
           <Icon size={21} />
         </div>
-
       </div>
     </div>
   );
 };
 
-// ======================================================
+// =========================================================
 // FILTER BUTTON
-// ======================================================
+// =========================================================
 
 const FilterButton = ({
   active,
@@ -974,6 +1209,7 @@ const FilterButton = ({
 }) => {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
         active
@@ -986,9 +1222,9 @@ const FilterButton = ({
   );
 };
 
-// ======================================================
+// =========================================================
 // INGREDIENT CARD
-// ======================================================
+// =========================================================
 
 const IngredientCard = ({
   ingredient,
@@ -1002,15 +1238,16 @@ const IngredientCard = ({
 
   const TypeIcon = config.icon;
 
+  const isAvailable =
+    ingredient.isAvailable !== false;
+
   return (
     <div className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
 
       {/* TOP */}
 
       <div className="flex items-start justify-between gap-4">
-
         <div className="flex items-center gap-3">
-
           <div
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${config.bg} text-2xl`}
           >
@@ -1019,7 +1256,6 @@ const IngredientCard = ({
 
           <div>
             <div className="flex items-center gap-2">
-
               <h3 className="font-bold text-gray-900">
                 {ingredient.name}
               </h3>
@@ -1033,11 +1269,9 @@ const IngredientCard = ({
                   Popular
                 </span>
               )}
-
             </div>
 
             <div className="mt-1 flex items-center gap-1.5">
-
               <TypeIcon
                 size={13}
                 className={config.text}
@@ -1048,14 +1282,13 @@ const IngredientCard = ({
               >
                 {config.label}
               </span>
-
             </div>
           </div>
         </div>
 
         {/* AVAILABILITY */}
 
-        {ingredient.isAvailable !== false ? (
+        {isAvailable ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-bold text-green-700">
             <CheckCircle2 size={11} />
             Available
@@ -1066,7 +1299,6 @@ const IngredientCard = ({
             Unavailable
           </span>
         )}
-
       </div>
 
       {/* DESCRIPTION */}
@@ -1083,7 +1315,6 @@ const IngredientCard = ({
       {/* BOTTOM */}
 
       <div className="flex items-center justify-between">
-
         <div>
           <p className="text-xs text-gray-400">
             Additional Price
@@ -1095,23 +1326,34 @@ const IngredientCard = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* EDIT */}
 
           <button
-            onClick={() => onEdit(ingredient)}
+            type="button"
+            onClick={() =>
+              onEdit(ingredient)
+            }
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
             <Pencil size={14} />
             Edit
           </button>
 
+          {/* DELETE */}
+
           <button
+            type="button"
             onClick={() =>
               onDelete(ingredient._id)
             }
-            disabled={deletingId === ingredient._id}
+            disabled={
+              deletingId === ingredient._id
+            }
+            aria-label={`Delete ${ingredient.name}`}
             className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {deletingId === ingredient._id ? (
+            {deletingId ===
+            ingredient._id ? (
               <RefreshCw
                 size={14}
                 className="animate-spin"
@@ -1120,11 +1362,14 @@ const IngredientCard = ({
               <Trash2 size={14} />
             )}
           </button>
-
         </div>
       </div>
     </div>
   );
 };
+
+// =========================================================
+// EXPORT
+// =========================================================
 
 export default AdminIngredients;

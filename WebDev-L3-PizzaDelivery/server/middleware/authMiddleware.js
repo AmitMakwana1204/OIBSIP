@@ -1,19 +1,56 @@
 const jwt = require("jsonwebtoken");
 
+// =========================
+// PROTECT USER ROUTES
+// =========================
+
 const protect = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    // =========================
+    // GET AUTHORIZATION HEADER
+    // =========================
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const authHeader =
+      req.headers.authorization;
+
+    if (
+      !authHeader ||
+      !authHeader.startsWith("Bearer ")
+    ) {
       return res.status(401).json({
         success: false,
-        message: "Access denied. No token provided.",
+        message:
+          "Access denied. No token provided.",
       });
     }
 
-    const token = authHeader.split(" ")[1];
+    // =========================
+    // GET TOKEN
+    // =========================
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const token =
+      authHeader.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Access denied. No token provided.",
+      });
+    }
+
+    // =========================
+    // VERIFY TOKEN
+    // =========================
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    // =========================
+    // ATTACH USER
+    // =========================
 
     req.user = {
       id: decoded.id,
@@ -22,11 +59,19 @@ const protect = (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error(
+      "Auth Middleware Error:",
+      error.message
+    );
+
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token. Please log in again.",
+      message:
+        "Invalid or expired token. Please log in again.",
     });
   }
 };
 
-module.exports = { protect };
+module.exports = {
+  protect,
+};

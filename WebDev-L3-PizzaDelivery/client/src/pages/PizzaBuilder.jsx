@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getIngredients } from "../services/api";
 
 import Navbar from "../components/Navbar";
 import StepIndicator from "../components/StepIndicator";
@@ -21,14 +22,11 @@ import {
 } from "lucide-react";
 
 /* =========================================================
-   API
+   CONSTANTS
 ========================================================= */
 
-const API_URL = "http://localhost:5000/api/ingredients";
-
-/* =========================================================
-   STEPS
-========================================================= */
+const MIN_QUANTITY = 1;
+const MAX_QUANTITY = 20;
 
 const steps = [
   {
@@ -54,6 +52,28 @@ const steps = [
 ];
 
 /* =========================================================
+   HELPERS
+========================================================= */
+
+const getPrice = (item) => {
+  const price = Number(item?.price);
+
+  return Number.isFinite(price) && price >= 0 ? price : 0;
+};
+
+const isAvailable = (item) => {
+  return item && item.isAvailable !== false;
+};
+
+const itemStillExists = (item, list) => {
+  if (!item?._id) return false;
+
+  return list.some(
+    (availableItem) => availableItem._id === item._id
+  );
+};
+
+/* =========================================================
    COMPONENT
 ========================================================= */
 
@@ -74,7 +94,7 @@ export default function PizzaBuilder() {
   const [step, setStep] = useState(1);
 
   /* -------------------------------------------------------
-     Ingredients from MongoDB
+     Ingredients
   ------------------------------------------------------- */
 
   const [ingredients, setIngredients] = useState({
@@ -108,69 +128,85 @@ export default function PizzaBuilder() {
 
   const [quantity, setQuantity] = useState(1);
 
-  /* =========================================================
-     FETCH INGREDIENTS FROM BACKEND
-  ========================================================= */
+  /* -------------------------------------------------------
+     Validation
+  ------------------------------------------------------- */
 
-  useEffect(() => {
-    const fetchIngredients = async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const [validationError, setValidationError] = useState("");
 
-        const response = await fetch(API_URL);
+/* =========================================================
+   FETCH INGREDIENTS
+========================================================= */
 
-        const data = await response.json();
+useEffect(() => {
+  let isMounted = true;
 
-        if (!response.ok) {
-          throw new Error(
-            data.message || "Failed to fetch ingredients"
-          );
-        }
+  const fetchIngredients = async () => {
+    try {
+      setLoading(true);
+      setError("");
 
-        const list = data.ingredients || [];
+      const response = await getIngredients();
 
-        setIngredients({
-          base: list.filter(
-            (item) =>
-              item.type === "base" &&
-              item.isAvailable !== false
-          ),
+      const list = Array.isArray(
+        response?.data?.ingredients
+      )
+        ? response.data.ingredients
+        : [];
 
-          sauce: list.filter(
-            (item) =>
-              item.type === "sauce" &&
-              item.isAvailable !== false
-          ),
+      if (!isMounted) return;
 
-          cheese: list.filter(
-            (item) =>
-              item.type === "cheese" &&
-              item.isAvailable !== false
-          ),
+      setIngredients({
+        base: list.filter(
+          (item) =>
+            item.type === "base" &&
+            item.isAvailable !== false
+        ),
 
-          topping: list.filter(
-            (item) =>
-              item.type === "topping" &&
-              item.isAvailable !== false
-          ),
-        });
-      } catch (err) {
-        console.error(
-          "Ingredient fetch error:",
-          err
-        );
+        sauce: list.filter(
+          (item) =>
+            item.type === "sauce" &&
+            item.isAvailable !== false
+        ),
 
-        setError(
+        cheese: list.filter(
+          (item) =>
+            item.type === "cheese" &&
+            item.isAvailable !== false
+        ),
+
+        topping: list.filter(
+          (item) =>
+            item.type === "topping" &&
+            item.isAvailable !== false
+        ),
+      });
+    } catch (err) {
+      console.error(
+        "Ingredient fetch error:",
+        err
+      );
+
+      if (!isMounted) return;
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
           "Unable to load pizza ingredients. Please check your backend connection."
-        );
-      } finally {
+      );
+    } finally {
+      if (isMounted) {
         setLoading(false);
       }
-    };
+    }
+  };
 
-    fetchIngredients();
-  }, []);
+  fetchIngredients();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
 
   /* =========================================================
      SET DEFAULT INGREDIENTS
@@ -179,31 +215,55 @@ export default function PizzaBuilder() {
   useEffect(() => {
     if (loading) return;
 
-    setPizza((prev) => ({
-      ...prev,
+    setPizza((prev) => {
+      const baseStillValid = itemStillExists(
+        prev.base,
+        ingredients.base
+      );
 
-      base:
-        prev.base ||
-        ingredients.base[0] ||
-        null,
+      const sauceStillValid = itemStillExists(
+        prev.sauce,
+        ingredients.sauce
+      );
 
-      sauce:
-        prev.sauce ||
-        ingredients.sauce[0] ||
-        null,
+      const cheeseStillValid = itemStillExists(
+        prev.cheese,
+        ingredients.cheese
+      );
 
-      cheese:
-        prev.cheese ||
-        ingredients.cheese[0] ||
-        null,
-    }));
+      const validToppings = prev.vegetables.filter(
+        (item) => itemStillExists(item, ingredients.topping)
+      );
+
+      return {
+        ...prev,
+
+        base: baseStillValid
+          ? prev.base
+          : ingredients.base[0] || null,
+
+        sauce: sauceStillValid
+          ? prev.sauce
+          : ingredients.sauce[0] || null,
+
+        cheese: cheeseStillValid
+          ? prev.cheese
+          : ingredients.cheese[0] || null,
+
+        vegetables: validToppings,
+      };
+    });
   }, [loading, ingredients]);
 
   /* =========================================================
-     SELECT BASE / SAUCE / CHEESE
+     SELECT SINGLE INGREDIENT
   ========================================================= */
 
   const selectSingle = (type, item) => {
+    if (!item || !isAvailable(item)) return;
+
+    setValidationError("");
+
     setPizza((prev) => ({
       ...prev,
       [type]: item,
@@ -215,88 +275,78 @@ export default function PizzaBuilder() {
   ========================================================= */
 
   const toggleVegetable = (item) => {
+    if (!item || !isAvailable(item)) return;
+
+    setValidationError("");
+
     setPizza((prev) => {
       const exists = prev.vegetables.some(
-        (vegetable) =>
-          vegetable._id === item._id
+        (vegetable) => vegetable._id === item._id
       );
 
       if (exists) {
         return {
           ...prev,
-
-          vegetables:
-            prev.vegetables.filter(
-              (vegetable) =>
-                vegetable._id !== item._id
-            ),
+          vegetables: prev.vegetables.filter(
+            (vegetable) => vegetable._id !== item._id
+          ),
         };
       }
 
       return {
         ...prev,
-
-        vegetables: [
-          ...prev.vegetables,
-          item,
-        ],
+        vegetables: [...prev.vegetables, item],
       };
     });
   };
 
-  /* =========================================================
-     PRICE CALCULATION
-  ========================================================= */
+/* =========================================================
+   PRICE CALCULATION
+========================================================= */
 
   const singlePizzaPrice = useMemo(() => {
-    const startingPrice = 199;
+  const basePrice = getPrice(pizza.base);
+  const saucePrice = getPrice(pizza.sauce);
+  const cheesePrice = getPrice(pizza.cheese);
 
-    const basePrice =
-      pizza.base?.price || 0;
+  const toppingsPrice = pizza.vegetables.reduce(
+    (sum, item) => sum + getPrice(item),
+    0
+  );
 
-    const saucePrice =
-      pizza.sauce?.price || 0;
+  return (
+    basePrice +
+    saucePrice +
+    cheesePrice +
+    toppingsPrice
+  );
+}, [pizza]);
 
-    const cheesePrice =
-      pizza.cheese?.price || 0;
-
-    const toppingsPrice =
-      pizza.vegetables.reduce(
-        (sum, item) =>
-          sum + (item.price || 0),
-        0
-      );
-
-    return (
-      startingPrice +
-      basePrice +
-      saucePrice +
-      cheesePrice +
-      toppingsPrice
-    );
-  }, [pizza]);
-
-  const total =
-    singlePizzaPrice * quantity;
+const total = useMemo(() => {
+  return singlePizzaPrice * quantity;
+}, [singlePizzaPrice, quantity]);
 
   /* =========================================================
      STEP TITLE
   ========================================================= */
 
   const getStepTitle = () => {
-    if (step === 1) {
-      return "Choose Your Pizza Base";
-    }
+    switch (step) {
+      case 1:
+        return "Choose Your Pizza Base";
 
-    if (step === 2) {
-      return "Pick Your Favourite Sauce";
-    }
+      case 2:
+        return "Pick Your Favourite Sauce";
 
-    if (step === 3) {
-      return "Make It Extra Cheesy";
-    }
+      case 3:
+        return "Make It Extra Cheesy";
 
-    return "Load It With Toppings";
+      case 4:
+        return "Load It With Toppings";
+
+      default:
+        return "Customize Your Pizza";
+    }
   };
 
   /* =========================================================
@@ -304,19 +354,100 @@ export default function PizzaBuilder() {
   ========================================================= */
 
   const getStepSubtitle = () => {
+    switch (step) {
+      case 1:
+        return "Start with the perfect crust for your dream pizza.";
+
+      case 2:
+        return "Choose the flavour that makes every bite delicious.";
+
+      case 3:
+        return "Because there is no such thing as too much cheese.";
+
+      case 4:
+        return "Add fresh toppings and make your pizza truly yours.";
+
+      default:
+        return "Customize every delicious layer exactly the way you like.";
+    }
+  };
+
+  /* =========================================================
+     VALIDATE CURRENT STEP
+  ========================================================= */
+
+  const validateStep = () => {
+    setValidationError("");
+
     if (step === 1) {
-      return "Start with the perfect crust for your dream pizza.";
+      if (!pizza.base) {
+        setValidationError(
+          "Please select a pizza base before continuing."
+        );
+
+        return false;
+      }
+
+      if (!isAvailable(pizza.base)) {
+        setValidationError(
+          "Selected pizza base is no longer available."
+        );
+
+        return false;
+      }
     }
 
     if (step === 2) {
-      return "Choose the flavour that makes every bite delicious.";
+      if (!pizza.sauce) {
+        setValidationError(
+          "Please select a sauce before continuing."
+        );
+
+        return false;
+      }
+
+      if (!isAvailable(pizza.sauce)) {
+        setValidationError(
+          "Selected sauce is no longer available."
+        );
+
+        return false;
+      }
     }
 
     if (step === 3) {
-      return "Because there is no such thing as too much cheese.";
+      if (!pizza.cheese) {
+        setValidationError(
+          "Please select a cheese option before continuing."
+        );
+
+        return false;
+      }
+
+      if (!isAvailable(pizza.cheese)) {
+        setValidationError(
+          "Selected cheese is no longer available."
+        );
+
+        return false;
+      }
     }
 
-    return "Add fresh toppings and make your pizza truly yours.";
+    if (step === 4) {
+      const unavailableTopping = pizza.vegetables.find(
+        (item) => !isAvailable(item)
+      );
+
+      if (unavailableTopping) {
+        setValidationError(
+          `${unavailableTopping.name} is no longer available.`
+        );
+
+        return false;
+      }
+    }
+
+    return true;
   };
 
   /* =========================================================
@@ -324,16 +455,31 @@ export default function PizzaBuilder() {
   ========================================================= */
 
   const nextStep = () => {
+    if (!validateStep()) return;
+
     if (step < 4) {
       setStep((prev) => prev + 1);
       return;
     }
 
+    /*
+      Clean order payload.
+      Only send required information to Order Summary.
+    */
+
+    const orderPizza = {
+      base: pizza.base,
+      sauce: pizza.sauce,
+      cheese: pizza.cheese,
+      vegetables: pizza.vegetables,
+    };
+
     navigate("/order-summary", {
       state: {
-        pizza,
+        pizza: orderPizza,
         total,
         quantity,
+        singlePizzaPrice,
         selectedPizza,
       },
     });
@@ -344,6 +490,8 @@ export default function PizzaBuilder() {
   ========================================================= */
 
   const previousStep = () => {
+    setValidationError("");
+
     if (step > 1) {
       setStep((prev) => prev - 1);
     }
@@ -355,12 +503,22 @@ export default function PizzaBuilder() {
 
   const decreaseQuantity = () => {
     setQuantity((prev) =>
-      Math.max(1, prev - 1)
+      Math.max(MIN_QUANTITY, prev - 1)
     );
   };
 
   const increaseQuantity = () => {
-    setQuantity((prev) => prev + 1);
+    setQuantity((prev) =>
+      Math.min(MAX_QUANTITY, prev + 1)
+    );
+  };
+
+  /* =========================================================
+     RETRY
+  ========================================================= */
+
+  const retryIngredients = () => {
+    window.location.reload();
   };
 
   /* =========================================================
@@ -400,9 +558,7 @@ export default function PizzaBuilder() {
 
         <main className="min-h-screen bg-gradient-to-b from-orange-50/60 via-white to-gray-50 flex items-center justify-center px-5">
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 text-center max-w-md w-full">
-            <div className="text-6xl">
-              🍕
-            </div>
+            <div className="text-6xl">🍕</div>
 
             <h2 className="text-2xl font-black text-gray-900 mt-5">
               Ingredients Not Available
@@ -414,9 +570,7 @@ export default function PizzaBuilder() {
 
             <button
               type="button"
-              onClick={() =>
-                window.location.reload()
-              }
+              onClick={retryIngredients}
               className="mt-6 bg-red-600 text-white px-6 py-3 rounded-xl font-black hover:bg-red-700 transition"
             >
               Try Again
@@ -472,16 +626,13 @@ export default function PizzaBuilder() {
             className="flex items-center gap-2 text-gray-500 hover:text-red-600 font-bold text-sm transition"
           >
             <ArrowLeft size={17} />
-
             Back
           </button>
 
-          {/* Heading */}
-
           <div className="text-center max-w-3xl mx-auto mt-5">
+
             <div className="inline-flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-full text-xs sm:text-sm font-extrabold uppercase tracking-wider">
               <ChefHat size={16} />
-
               Pizza Builder
             </div>
 
@@ -549,6 +700,21 @@ export default function PizzaBuilder() {
 
               <div className="p-5 sm:p-7">
 
+                {/* Validation Error */}
+
+                {validationError && (
+                  <div
+                    role="alert"
+                    className="mb-5 flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3"
+                  >
+                    <span className="text-lg">⚠️</span>
+
+                    <p className="text-sm font-semibold">
+                      {validationError}
+                    </p>
+                  </div>
+                )}
+
                 {/* BASE */}
 
                 {step === 1 && (
@@ -557,16 +723,11 @@ export default function PizzaBuilder() {
                       items={ingredients.base}
                       selected={pizza.base}
                       onSelect={(item) =>
-                        selectSingle(
-                          "base",
-                          item
-                        )
+                        selectSingle("base", item)
                       }
                     />
                   ) : (
-                    <EmptyOptions
-                      text="No pizza bases available."
-                    />
+                    <EmptyOptions text="No pizza bases available." />
                   )
                 )}
 
@@ -578,16 +739,11 @@ export default function PizzaBuilder() {
                       items={ingredients.sauce}
                       selected={pizza.sauce}
                       onSelect={(item) =>
-                        selectSingle(
-                          "sauce",
-                          item
-                        )
+                        selectSingle("sauce", item)
                       }
                     />
                   ) : (
-                    <EmptyOptions
-                      text="No sauces available."
-                    />
+                    <EmptyOptions text="No sauces available." />
                   )
                 )}
 
@@ -599,16 +755,11 @@ export default function PizzaBuilder() {
                       items={ingredients.cheese}
                       selected={pizza.cheese}
                       onSelect={(item) =>
-                        selectSingle(
-                          "cheese",
-                          item
-                        )
+                        selectSingle("cheese", item)
                       }
                     />
                   ) : (
-                    <EmptyOptions
-                      text="No cheese options available."
-                    />
+                    <EmptyOptions text="No cheese options available." />
                   )
                 )}
 
@@ -622,9 +773,7 @@ export default function PizzaBuilder() {
                       onToggle={toggleVegetable}
                     />
                   ) : (
-                    <EmptyOptions
-                      text="No toppings available."
-                    />
+                    <EmptyOptions text="No toppings available." />
                   )
                 )}
 
@@ -640,9 +789,7 @@ export default function PizzaBuilder() {
                   >
                     <ArrowLeft size={18} />
 
-                    <span>
-                      Back
-                    </span>
+                    <span>Back</span>
                   </button>
 
                   <button
@@ -658,7 +805,6 @@ export default function PizzaBuilder() {
 
                     <ArrowRight size={18} />
                   </button>
-
                 </div>
               </div>
             </section>
@@ -728,54 +874,32 @@ export default function PizzaBuilder() {
 
                     {pizza.base && (
                       <IngredientPill
-                        icon={
-                          pizza.base.icon ||
-                          "🍕"
-                        }
-                        text={
-                          pizza.base.name
-                        }
+                        icon={pizza.base.icon || "🍕"}
+                        text={pizza.base.name}
                       />
                     )}
 
                     {pizza.sauce && (
                       <IngredientPill
-                        icon={
-                          pizza.sauce.icon ||
-                          "🍅"
-                        }
-                        text={
-                          pizza.sauce.name
-                        }
+                        icon={pizza.sauce.icon || "🍅"}
+                        text={pizza.sauce.name}
                       />
                     )}
 
                     {pizza.cheese && (
                       <IngredientPill
-                        icon={
-                          pizza.cheese.icon ||
-                          "🧀"
-                        }
-                        text={
-                          pizza.cheese.name
-                        }
+                        icon={pizza.cheese.icon || "🧀"}
+                        text={pizza.cheese.name}
                       />
                     )}
 
-                    {pizza.vegetables.map(
-                      (item) => (
-                        <IngredientPill
-                          key={item._id}
-                          icon={
-                            item.icon ||
-                            "🌿"
-                          }
-                          text={
-                            item.name
-                          }
-                        />
-                      )
-                    )}
+                    {pizza.vegetables.map((item) => (
+                      <IngredientPill
+                        key={item._id}
+                        icon={item.icon || "🌿"}
+                        text={item.name}
+                      />
+                    ))}
 
                   </div>
                 </div>
@@ -820,7 +944,6 @@ export default function PizzaBuilder() {
 
                       <span className="inline-flex items-center gap-1.5 bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full text-[11px] font-bold">
                         <Check size={12} />
-
                         Great choice!
                       </span>
 
@@ -848,10 +971,10 @@ export default function PizzaBuilder() {
 
                       <button
                         type="button"
-                        onClick={
-                          decreaseQuantity
-                        }
-                        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition"
+                        onClick={decreaseQuantity}
+                        disabled={quantity <= MIN_QUANTITY}
+                        aria-label="Decrease quantity"
+                        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Minus size={16} />
                       </button>
@@ -862,16 +985,21 @@ export default function PizzaBuilder() {
 
                       <button
                         type="button"
-                        onClick={
-                          increaseQuantity
-                        }
-                        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition"
+                        onClick={increaseQuantity}
+                        disabled={quantity >= MAX_QUANTITY}
+                        aria-label="Increase quantity"
+                        className="w-9 h-9 rounded-lg flex items-center justify-center hover:bg-white/10 transition disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Plus size={16} />
                       </button>
 
                     </div>
                   </div>
+
+                  <p className="text-[11px] text-gray-500 text-right mt-2">
+                    Maximum {MAX_QUANTITY} pizzas
+                  </p>
+
                 </div>
 
                 {/* Trust */}
@@ -881,25 +1009,17 @@ export default function PizzaBuilder() {
                   <div className="grid grid-cols-3 gap-2">
 
                     <TrustItem
-                      icon={
-                        <Clock3 size={15} />
-                      }
+                      icon={<Clock3 size={15} />}
                       text="30 Min"
                     />
 
                     <TrustItem
-                      icon={
-                        <ShieldCheck
-                          size={15}
-                        />
-                      }
+                      icon={<ShieldCheck size={15} />}
                       text="Secure"
                     />
 
                     <TrustItem
-                      icon={
-                        <Leaf size={15} />
-                      }
+                      icon={<Leaf size={15} />}
                       text="Fresh"
                     />
 
@@ -943,27 +1063,19 @@ export default function PizzaBuilder() {
             <div className="grid sm:grid-cols-3 gap-5">
 
               <BottomFeature
-                icon={
-                  <Utensils size={20} />
-                }
+                icon={<Utensils size={20} />}
                 title="Made Fresh"
                 text="Prepared after you order"
               />
 
               <BottomFeature
-                icon={
-                  <Clock3 size={20} />
-                }
+                icon={<Clock3 size={20} />}
                 title="Fast Delivery"
                 text="Hot pizza at your doorstep"
               />
 
               <BottomFeature
-                icon={
-                  <ShieldCheck
-                    size={20}
-                  />
-                }
+                icon={<ShieldCheck size={20} />}
                 title="Safe & Secure"
                 text="Easy and secure checkout"
               />
@@ -999,10 +1111,15 @@ function SelectionStep({
             type="button"
             key={item._id}
             onClick={() => onSelect(item)}
+            disabled={!isAvailable(item)}
             className={`relative group text-left rounded-2xl border-2 p-4 sm:p-5 transition-all duration-200 ${
               active
                 ? "border-red-600 bg-red-50 shadow-md shadow-red-100"
                 : "border-gray-100 bg-white hover:border-orange-200 hover:shadow-md"
+            } ${
+              !isAvailable(item)
+                ? "opacity-50 cursor-not-allowed"
+                : ""
             }`}
           >
 
@@ -1037,14 +1154,14 @@ function SelectionStep({
 
                 <p
                   className={`text-sm font-extrabold mt-2 ${
-                    item.price === 0
+                    getPrice(item) === 0
                       ? "text-green-600"
                       : "text-red-600"
                   }`}
                 >
-                  {item.price === 0
+                  {getPrice(item) === 0
                     ? "Included"
-                    : `+ ₹${item.price}`}
+                    : `+ ₹${getPrice(item)}`}
                 </p>
 
               </div>
@@ -1069,6 +1186,7 @@ function SelectionStep({
           </button>
         );
       })}
+
     </div>
   );
 }
@@ -1117,10 +1235,15 @@ function VegetableStep({
               type="button"
               key={item._id}
               onClick={() => onToggle(item)}
+              disabled={!isAvailable(item)}
               className={`relative p-4 rounded-2xl border-2 text-center transition-all ${
                 active
                   ? "border-green-500 bg-green-50 shadow-md shadow-green-100"
                   : "border-gray-100 hover:border-green-200 hover:bg-green-50/40"
+              } ${
+                !isAvailable(item)
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
               }`}
             >
 
@@ -1142,7 +1265,7 @@ function VegetableStep({
               </p>
 
               <p className="text-xs text-gray-500 mt-1">
-                + ₹{item.price || 0}
+                + ₹{getPrice(item)}
               </p>
 
             </button>
@@ -1227,7 +1350,6 @@ function BottomFeature({
       </div>
 
       <div>
-
         <p className="font-black text-gray-900 text-sm">
           {title}
         </p>
@@ -1235,7 +1357,6 @@ function BottomFeature({
         <p className="text-xs text-gray-500 mt-0.5">
           {text}
         </p>
-
       </div>
 
     </div>

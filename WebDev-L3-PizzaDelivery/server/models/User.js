@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
+    // =========================
+    // ACCOUNT INFORMATION
+    // =========================
     name: {
       type: String,
       required: true,
@@ -22,6 +25,45 @@ const userSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+    // =========================
+    // CONTACT INFORMATION
+    // =========================
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // =========================
+    // DELIVERY ADDRESS
+    // =========================
+    address: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    state: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    pincode: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // =========================
+    // EMAIL VERIFICATION
+    // =========================
     isVerified: {
       type: Boolean,
       default: false,
@@ -37,6 +79,9 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // =========================
+    // PASSWORD RESET
+    // =========================
     resetPasswordToken: {
       type: String,
       default: null,

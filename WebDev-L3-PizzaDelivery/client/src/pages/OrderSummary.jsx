@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import Navbar from "../components/Navbar";
+
 import {
   ArrowLeft,
   CheckCircle2,
@@ -12,73 +18,147 @@ import {
   Truck,
   ShieldCheck,
 } from "lucide-react";
+
 import { createUserOrder } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 export default function OrderSummary() {
   const location = useLocation();
   const navigate = useNavigate();
+
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // =========================
+  // CHECKOUT STATE
+  // =========================
 
   const state = location.state || {};
 
   const pizza = state.pizza || {
     name: "Custom Pizza",
     image: "",
+
     base: {
       name: "Classic Crust",
       price: 0,
     },
+
     sauce: {
       name: "Classic Tomato",
       price: 0,
     },
+
     cheese: {
       name: "Mozzarella",
       price: 0,
     },
+
     vegetables: [],
   };
 
-  const quantity = Math.max(Number(state.quantity) || 1, 1);
+  const quantity = Math.max(
+    Number(state.quantity) || 1,
+    1
+  );
 
-  const selectedPizza = state.selectedPizza || null;
+  const selectedPizza =
+    state.selectedPizza || null;
+
+  // =========================
+  // USER DATA
+  // =========================
+
+  const userName =
+    user?.name?.trim() || "Customer";
+
+  const userEmail =
+    user?.email?.trim() || "";
+
+  const userPhone =
+    user?.phone?.trim() || "";
+
+  const userAddress =
+    user?.address?.trim() || "";
+
+  const userCity =
+    user?.city?.trim() || "";
+
+  const userState =
+    user?.state?.trim() || "";
+
+  const userPincode =
+    user?.pincode?.trim() || "";
+
+  // =========================
+  // ADDRESS DISPLAY
+  // =========================
+
+  const formattedAddress = [
+    userAddress,
+    userCity,
+    userState,
+    userPincode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // =========================
+  // PRICING
+  // =========================
 
   const pricing = useMemo(() => {
-    const basePrice = Number(pizza.base?.price) || 0;
-    const saucePrice = Number(pizza.sauce?.price) || 0;
-    const cheesePrice = Number(pizza.cheese?.price) || 0;
+    const basePrice =
+      Number(pizza.base?.price) || 0;
 
-    const toppingsPrice = Array.isArray(pizza.vegetables)
-      ? pizza.vegetables.reduce(
-          (sum, item) => sum + (Number(item.price) || 0),
-          0
-        )
-      : 0;
+    const saucePrice =
+      Number(pizza.sauce?.price) || 0;
 
-    const startingPrice = 199;
+    const cheesePrice =
+      Number(pizza.cheese?.price) || 0;
 
+    const toppingsPrice =
+      Array.isArray(
+        pizza.vegetables
+      )
+        ? pizza.vegetables.reduce(
+            (sum, item) =>
+              sum +
+              (Number(item.price) || 0),
+            0
+          )
+        : 0;
+
+    // No starting price
     const singlePizzaPrice =
-      startingPrice +
       basePrice +
       saucePrice +
       cheesePrice +
       toppingsPrice;
 
-    const itemTotal = singlePizzaPrice * quantity;
+    const itemTotal =
+      singlePizzaPrice * quantity;
 
-    const deliveryFee = itemTotal >= 499 ? 0 : 40;
+    const deliveryFee =
+      itemTotal >= 499
+        ? 0
+        : 40;
 
     const discount =
-      itemTotal >= 999 ? Math.round(itemTotal * 0.2) : 0;
+      itemTotal >= 999
+        ? Math.round(
+            itemTotal * 0.2
+          )
+        : 0;
 
-    const finalTotal = itemTotal + deliveryFee - discount;
+    const finalTotal =
+      itemTotal +
+      deliveryFee -
+      discount;
 
     return {
-      startingPrice,
       basePrice,
       saucePrice,
       cheesePrice,
@@ -91,18 +171,86 @@ export default function OrderSummary() {
     };
   }, [pizza, quantity]);
 
+  // =========================
+  // VALIDATE USER DETAILS
+  // =========================
+
+  const validateUserDetails = () => {
+    if (!user) {
+      return "Please log in before placing your order.";
+    }
+
+    if (!user.name?.trim()) {
+      return "Please update your name in your profile.";
+    }
+
+    if (!user.phone?.trim()) {
+      return "Please add your phone number in your profile.";
+    }
+
+    if (!user.address?.trim()) {
+      return "Please add your delivery address in your profile.";
+    }
+
+    if (!user.city?.trim()) {
+      return "Please add your city in your profile.";
+    }
+
+    if (!user.state?.trim()) {
+      return "Please add your state in your profile.";
+    }
+
+    if (!user.pincode?.trim()) {
+      return "Please add your pincode in your profile.";
+    }
+
+    return "";
+  };
+
+  // =========================
+  // PLACE ORDER
+  // =========================
+
   const handlePay = async () => {
     try {
       setLoading(true);
       setError("");
 
+      // =========================
+      // VALIDATE LOGIN + PROFILE
+      // =========================
+
+      const validationError =
+        validateUserDetails();
+
+      if (validationError) {
+        setError(validationError);
+        setLoading(false);
+        return;
+      }
+
+      // =========================
+      // ORDER DATA
+      // =========================
+
       const orderData = {
         items: [
           {
-            product: selectedPizza?._id || selectedPizza?.id || null,
-            name: selectedPizza?.name || pizza.name || "Custom Pizza",
-            price: pricing.singlePizzaPrice,
+            product:
+              selectedPizza?._id ||
+              selectedPizza?.id ||
+              null,
+
+            name:
+              selectedPizza?.name ||
+              pizza.name ||
+              "Custom Pizza",
+
+            price:
+              pricing.singlePizzaPrice,
+
             quantity,
+
             image:
               selectedPizza?.image ||
               pizza.image ||
@@ -110,27 +258,64 @@ export default function OrderSummary() {
           },
         ],
 
+        // =========================
+        // ACTUAL LOGGED-IN USER
+        // =========================
+
         customer: {
-          name: user?.name || "Customer",
-          phone: "9876543210",
+          name: userName,
+          email: userEmail,
+          phone: userPhone,
         },
 
+        // =========================
+        // ACTUAL USER ADDRESS
+        // =========================
+
         shippingAddress: {
-          address: "221B Baker Street",
-          city: "Mumbai",
-          pincode: "400001",
+          address: userAddress,
+          city: userCity,
+          state: userState,
+          pincode: userPincode,
         },
+
+        // =========================
+        // PAYMENT
+        // =========================
 
         paymentMethod: "COD",
         paymentStatus: "PENDING",
 
-        subtotal: pricing.itemTotal,
-        deliveryFee: pricing.deliveryFee,
-        discount: pricing.discount,
-        total: pricing.finalTotal,
+        // =========================
+        // PRICING
+        // =========================
+
+        subtotal:
+          pricing.itemTotal,
+
+        deliveryFee:
+          pricing.deliveryFee,
+
+        discount:
+          pricing.discount,
+
+        total:
+          pricing.finalTotal,
       };
 
-      const res = await createUserOrder(orderData);
+      console.log(
+        "Creating Order:",
+        orderData
+      );
+
+      // =========================
+      // CREATE ORDER
+      // =========================
+
+      const res =
+        await createUserOrder(
+          orderData
+        );
 
       const placedOrder =
         res.data?.order ||
@@ -138,23 +323,41 @@ export default function OrderSummary() {
         res.data ||
         res;
 
-      if (res.data?.success || res.status === 201) {
-        navigate("/order-success", {
-          replace: true,
-          state: {
-            order: placedOrder,
-          },
-        });
+      // =========================
+      // SUCCESS
+      // =========================
+
+      if (
+        res.data?.success ||
+        res.status === 201
+      ) {
+        navigate(
+          "/order-success",
+          {
+            replace: true,
+
+            state: {
+              order: placedOrder,
+            },
+          }
+        );
 
         return;
       }
+
+      // =========================
+      // FAILED RESPONSE
+      // =========================
 
       setError(
         res.data?.message ||
           "Order could not be placed. Please try again."
       );
     } catch (err) {
-      console.error("Order creation error:", err);
+      console.error(
+        "Order creation error:",
+        err
+      );
 
       setError(
         err.response?.data?.message ||
@@ -166,6 +369,10 @@ export default function OrderSummary() {
     }
   };
 
+  // =========================
+  // UI
+  // =========================
+
   return (
     <>
       <Navbar />
@@ -173,16 +380,23 @@ export default function OrderSummary() {
       <main className="min-h-screen bg-gray-50 py-10">
         <div className="max-w-6xl mx-auto px-6">
 
-          {/* Back */}
+          {/* =========================
+              BACK
+          ========================= */}
+
           <Link
             to="/pizza-builder"
             className="inline-flex items-center gap-2 text-gray-600 font-semibold mb-7 hover:text-red-600 transition"
           >
             <ArrowLeft size={18} />
+
             Back to Builder
           </Link>
 
-          {/* Header */}
+          {/* =========================
+              HEADER
+          ========================= */}
+
           <div>
             <p className="text-sm font-bold text-red-600 uppercase tracking-wider">
               Checkout
@@ -197,7 +411,10 @@ export default function OrderSummary() {
             </p>
           </div>
 
-          {/* Error */}
+          {/* =========================
+              ERROR
+          ========================= */}
+
           {error && (
             <div className="mt-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3">
               <AlertCircle
@@ -205,16 +422,28 @@ export default function OrderSummary() {
                 className="shrink-0 text-red-600"
               />
 
-              <span>{error}</span>
+              <span>
+                {error}
+              </span>
             </div>
           )}
 
+          {/* =========================
+              MAIN GRID
+          ========================= */}
+
           <div className="grid lg:grid-cols-[1fr_380px] gap-8 mt-8">
 
-            {/* LEFT */}
+            {/* =================================================
+                LEFT
+            ================================================= */}
+
             <div className="space-y-6">
 
-              {/* Pizza Card */}
+              {/* =========================
+                  PIZZA CARD
+              ========================= */}
+
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
 
                 <div className="p-7 border-b border-gray-100">
@@ -239,9 +468,14 @@ export default function OrderSummary() {
 
                 </div>
 
-                {/* Pizza Image */}
-                {selectedPizza?.image || pizza.image ? (
+                {/* =========================
+                    PIZZA IMAGE
+                ========================= */}
+
+                {selectedPizza?.image ||
+                pizza.image ? (
                   <div className="h-64 bg-gray-100 overflow-hidden">
+
                     <img
                       src={
                         selectedPizza?.image ||
@@ -254,12 +488,16 @@ export default function OrderSummary() {
                       }
                       className="w-full h-full object-cover"
                     />
+
                   </div>
                 ) : null}
 
+                {/* =========================
+                    INGREDIENTS
+                ========================= */}
+
                 <div className="p-7">
 
-                  {/* Base */}
                   <Item
                     title="Pizza Base"
                     value={
@@ -267,11 +505,12 @@ export default function OrderSummary() {
                       "Classic Crust"
                     }
                     price={
-                      Number(pizza.base?.price) || 0
+                      Number(
+                        pizza.base?.price
+                      ) || 0
                     }
                   />
 
-                  {/* Sauce */}
                   <Item
                     title="Sauce"
                     value={
@@ -279,11 +518,12 @@ export default function OrderSummary() {
                       "Classic Tomato"
                     }
                     price={
-                      Number(pizza.sauce?.price) || 0
+                      Number(
+                        pizza.sauce?.price
+                      ) || 0
                     }
                   />
 
-                  {/* Cheese */}
                   <Item
                     title="Cheese"
                     value={
@@ -291,17 +531,21 @@ export default function OrderSummary() {
                       "Mozzarella"
                     }
                     price={
-                      Number(pizza.cheese?.price) || 0
+                      Number(
+                        pizza.cheese?.price
+                      ) || 0
                     }
                   />
 
-                  {/* Toppings */}
                   <Item
                     title="Toppings"
                     value={
                       pizza.vegetables?.length
                         ? pizza.vegetables
-                            .map((item) => item.name)
+                            .map(
+                              (item) =>
+                                item.name
+                            )
                             .join(", ")
                         : "No extra toppings"
                     }
@@ -310,14 +554,6 @@ export default function OrderSummary() {
                     }
                   />
 
-                  {/* Starting Price */}
-                  <Item
-                    title="Pizza Starting Price"
-                    value="Standard Pizza"
-                    price={pricing.startingPrice}
-                  />
-
-                  {/* Quantity */}
                   <Item
                     title="Quantity"
                     value={`× ${quantity}`}
@@ -327,7 +563,10 @@ export default function OrderSummary() {
                 </div>
               </div>
 
-              {/* Delivery Address */}
+              {/* =================================================
+                  CUSTOMER DETAILS
+              ================================================= */}
+
               <div className="bg-white rounded-3xl p-7 border border-gray-100 shadow-sm">
 
                 <div className="flex items-center gap-3">
@@ -338,11 +577,11 @@ export default function OrderSummary() {
 
                   <div>
                     <h2 className="font-black text-xl">
-                      Delivery Address
+                      Delivery Details
                     </h2>
 
                     <p className="text-sm text-gray-500">
-                      Your order will be delivered here
+                      Your order will be delivered to your profile address
                     </p>
                   </div>
 
@@ -350,36 +589,65 @@ export default function OrderSummary() {
 
                 <div className="mt-6 p-5 bg-gray-50 rounded-2xl">
 
+                  {/* Name */}
+
                   <p className="font-black">
-                    Home
+                    {userName}
                   </p>
 
-                  <p className="text-sm text-gray-500 mt-2 leading-6">
-                    221B Baker Street, Mumbai,
-                    Maharashtra 400001
+                  {/* Email */}
+
+                  {userEmail && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {userEmail}
+                    </p>
+                  )}
+
+                  {/* Phone */}
+
+                  {userPhone && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {userPhone}
+                    </p>
+                  )}
+
+                  {/* Address */}
+
+                  <p className="text-sm text-gray-500 mt-3 leading-6">
+                    {formattedAddress ||
+                      "Delivery address not added"}
                   </p>
 
                 </div>
 
               </div>
 
-              {/* Trust */}
+              {/* =========================
+                  TRUST
+              ========================= */}
+
               <div className="grid sm:grid-cols-3 gap-4">
 
                 <TrustCard
-                  icon={<ShieldCheck size={19} />}
+                  icon={
+                    <ShieldCheck size={19} />
+                  }
                   title="Secure"
                   text="Safe checkout"
                 />
 
                 <TrustCard
-                  icon={<Truck size={19} />}
+                  icon={
+                    <Truck size={19} />
+                  }
                   title="Fast Delivery"
                   text="Fresh & hot"
                 />
 
                 <TrustCard
-                  icon={<CheckCircle2 size={19} />}
+                  icon={
+                    <CheckCircle2 size={19} />
+                  }
                   title="Quality"
                   text="Made fresh"
                 />
@@ -388,7 +656,10 @@ export default function OrderSummary() {
 
             </div>
 
-            {/* RIGHT */}
+            {/* =================================================
+                RIGHT
+            ================================================= */}
+
             <div>
 
               <div className="bg-gray-950 text-white rounded-3xl p-7 shadow-2xl lg:sticky lg:top-6">
@@ -485,6 +756,7 @@ export default function OrderSummary() {
 
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mt-5">
                   <CheckCircle2 size={14} />
+
                   Secure order processing
                 </div>
 
@@ -499,9 +771,9 @@ export default function OrderSummary() {
   );
 }
 
-/* =========================
-   ITEM
-========================= */
+// =========================================================
+// ITEM
+// =========================================================
 
 function Item({
   title,
@@ -533,9 +805,9 @@ function Item({
   );
 }
 
-/* =========================
-   PRICE ROW
-========================= */
+// =========================================================
+// PRICE ROW
+// =========================================================
 
 function PriceRow({
   label,
@@ -549,7 +821,9 @@ function PriceRow({
         {label}
       </span>
 
-      <span className={`font-bold ${valueClass}`}>
+      <span
+        className={`font-bold ${valueClass}`}
+      >
         {value}
       </span>
 
@@ -557,9 +831,9 @@ function PriceRow({
   );
 }
 
-/* =========================
-   TRUST CARD
-========================= */
+// =========================================================
+// TRUST CARD
+// =========================================================
 
 function TrustCard({
   icon,

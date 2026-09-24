@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+
 const User = require("../models/User");
 
 const {
@@ -9,13 +10,40 @@ const {
 } = require("../utils/sendEmail");
 
 // =========================
+// USER RESPONSE HELPER
+// =========================
+
+const getUserResponse = (user) => {
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || "",
+    address: user.address || "",
+    city: user.city || "",
+    state: user.state || "",
+    pincode: user.pincode || "",
+    isVerified: user.isVerified,
+  };
+};
+
+// =========================
 // REGISTER USER
 // =========================
+
 const register = async (req, res) => {
   try {
-    const { name, email, password, confirmPassword } = req.body;
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+    } = req.body;
 
-    // Validation
+    // =========================
+    // VALIDATION
+    // =========================
+
     if (!name || !email || !password || !confirmPassword) {
       return res.status(400).json({
         success: false,
@@ -23,14 +51,22 @@ const register = async (req, res) => {
       });
     }
 
-    // Email format validation
+    // =========================
+    // EMAIL VALIDATION
+    // =========================
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!emailRegex.test(email)) {
       return res.status(400).json({
         success: false,
         message: "Please provide a valid email address",
       });
     }
+
+    // =========================
+    // PASSWORD VALIDATION
+    // =========================
 
     if (password.length < 6) {
       return res.status(400).json({
@@ -46,7 +82,10 @@ const register = async (req, res) => {
       });
     }
 
-    // Check existing user
+    // =========================
+    // CHECK EXISTING USER
+    // =========================
+
     const existingUser = await User.findOne({
       email: email.toLowerCase(),
     });
@@ -58,30 +97,49 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
+    // =========================
+    // HASH PASSWORD
+    // =========================
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate verification token
+    // =========================
+    // VERIFICATION TOKEN
+    // =========================
+
     const verificationToken = crypto
       .randomBytes(32)
       .toString("hex");
 
-    // Token expires in 15 minutes
     const verificationTokenExpires = new Date(
       Date.now() + 15 * 60 * 1000
     );
 
-    // Create user
+    // =========================
+    // CREATE USER
+    // =========================
+
     const user = await User.create({
-      name,
+      name: name.trim(),
       email: email.toLowerCase(),
       password: hashedPassword,
+
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      pincode: "",
+
       isVerified: false,
+
       verificationToken,
       verificationTokenExpires,
     });
 
-    // Send verification email
+    // =========================
+    // SEND VERIFICATION EMAIL
+    // =========================
+
     try {
       await sendVerificationEmail(
         user.email,
@@ -89,9 +147,21 @@ const register = async (req, res) => {
         verificationToken
       );
     } catch (emailErr) {
-      console.warn("⚠️ Warning: Email sending failed:", emailErr.message);
-      console.log(`🔗 Verification Link for ${user.email}: ${process.env.CLIENT_URL || "http://localhost:5173"}/verify-email?token=${verificationToken}`);
+      console.warn(
+        "⚠️ Warning: Email sending failed:",
+        emailErr.message
+      );
+
+      console.log(
+        `🔗 Verification Link for ${user.email}: ${
+          process.env.CLIENT_URL || "http://localhost:5173"
+        }/verify-email?token=${verificationToken}`
+      );
     }
+
+    // =========================
+    // RESPONSE
+    // =========================
 
     return res.status(201).json({
       success: true,
@@ -99,11 +169,12 @@ const register = async (req, res) => {
         "Registration successful! Please check your email to verify your account.",
     });
   } catch (error) {
-    console.error("Register Error:", error.message);
+    console.error("Register Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Server error during registration. Please try again.",
+      message:
+        "Server error during registration. Please try again.",
     });
   }
 };
@@ -111,6 +182,7 @@ const register = async (req, res) => {
 // =========================
 // VERIFY EMAIL
 // =========================
+
 const verifyEmail = async (req, res) => {
   try {
     const { token } = req.query;
@@ -122,7 +194,10 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // Find user with valid token
+    // =========================
+    // FIND USER
+    // =========================
+
     const user = await User.findOne({
       verificationToken: token,
       verificationTokenExpires: {
@@ -133,11 +208,15 @@ const verifyEmail = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Verification link is invalid or has expired.",
+        message:
+          "Verification link is invalid or has expired.",
       });
     }
 
-    // Verify user
+    // =========================
+    // VERIFY USER
+    // =========================
+
     user.isVerified = true;
     user.verificationToken = null;
     user.verificationTokenExpires = null;
@@ -146,14 +225,16 @@ const verifyEmail = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Email verified successfully! You can now log in.",
+      message:
+        "Email verified successfully! You can now log in.",
     });
   } catch (error) {
-    console.error("Verify Email Error:", error.message);
+    console.error("Verify Email Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Server error during email verification",
+      message:
+        "Server error during email verification",
     });
   }
 };
@@ -161,19 +242,30 @@ const verifyEmail = async (req, res) => {
 // =========================
 // LOGIN
 // =========================
+
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
-    // Validation
+    // =========================
+    // VALIDATION
+    // =========================
+
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message:
+          "Email and password are required",
       });
     }
 
-    // Find user
+    // =========================
+    // FIND USER
+    // =========================
+
     const user = await User.findOne({
       email: email.toLowerCase(),
     });
@@ -181,24 +273,33 @@ const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message:
+          "Invalid email or password",
       });
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.password
-    );
+    // =========================
+    // VERIFY PASSWORD
+    // =========================
+
+    const isPasswordValid =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
 
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message:
+          "Invalid email or password",
       });
     }
 
-    // Check email verification
+    // =========================
+    // EMAIL VERIFICATION
+    // =========================
+
     if (!user.isVerified) {
       return res.status(403).json({
         success: false,
@@ -207,29 +308,291 @@ const login = async (req, res) => {
       });
     }
 
-    // Generate JWT
+    // =========================
+    // GENERATE JWT
+    // =========================
+
     const token = jwt.sign(
-      { id: user._id, email: user.email },
+      {
+        id: user._id,
+        email: user.email,
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        expiresIn: "7d",
+      }
     );
+
+    // =========================
+    // RESPONSE
+    // =========================
 
     return res.status(200).json({
       success: true,
       message: "Login successful!",
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
+      user: getUserResponse(user),
     });
   } catch (error) {
-    console.error("Login Error:", error.message);
+    console.error("Login Error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Server error during login. Please try again.",
+      message:
+        "Server error during login. Please try again.",
+    });
+  }
+};
+
+// =========================
+// GET CURRENT USER
+// =========================
+
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(
+      req.user.id
+    ).select(
+      "-password -verificationToken -verificationTokenExpires -resetPasswordToken -resetPasswordExpires"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: getUserResponse(user),
+    });
+  } catch (error) {
+    console.error("Get Me Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while fetching user",
+    });
+  }
+};
+
+// =========================
+// UPDATE PROFILE
+// =========================
+
+const updateProfile = async (req, res) => {
+  try {
+    const {
+      name,
+      phone,
+      address,
+      city,
+      state,
+      pincode,
+    } = req.body;
+
+    const user = await User.findById(
+      req.user.id
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // =========================
+    // UPDATE FIELDS
+    // =========================
+
+    if (name !== undefined) {
+      user.name = name.trim();
+    }
+
+    if (phone !== undefined) {
+      user.phone = phone.trim();
+    }
+
+    if (address !== undefined) {
+      user.address = address.trim();
+    }
+
+    if (city !== undefined) {
+      user.city = city.trim();
+    }
+
+    if (state !== undefined) {
+      user.state = state.trim();
+    }
+
+    if (pincode !== undefined) {
+      user.pincode = pincode.trim();
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: getUserResponse(user),
+    });
+  } catch (error) {
+    console.error(
+      "Update Profile Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while updating profile",
+    });
+  }
+};
+
+// =========================
+// CHANGE PASSWORD
+// =========================
+
+const changePassword = async (req, res) => {
+  try {
+    const {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    } = req.body;
+
+    // =========================
+    // VALIDATION
+    // =========================
+
+    if (
+      !currentPassword ||
+      !newPassword ||
+      !confirmPassword
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "All password fields are required",
+      });
+    }
+
+    // =========================
+    // NEW PASSWORD LENGTH
+    // =========================
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be at least 6 characters",
+      });
+    }
+
+    // =========================
+    // CONFIRM PASSWORD
+    // =========================
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Passwords do not match",
+      });
+    }
+
+    // =========================
+    // FIND USER
+    // =========================
+
+    const user = await User.findById(
+      req.user.id
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // =========================
+    // CHECK CURRENT PASSWORD
+    // =========================
+
+    const isCurrentPasswordValid =
+      await bcrypt.compare(
+        currentPassword,
+        user.password
+      );
+
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Current password is incorrect",
+      });
+    }
+
+    // =========================
+    // CHECK SAME PASSWORD
+    // =========================
+
+    const isSamePassword =
+      await bcrypt.compare(
+        newPassword,
+        user.password
+      );
+
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from current password",
+      });
+    }
+
+    // =========================
+    // HASH NEW PASSWORD
+    // =========================
+
+    const hashedPassword =
+      await bcrypt.hash(
+        newPassword,
+        12
+      );
+
+    user.password = hashedPassword;
+
+    // Clear any old reset-password token
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+
+    await user.save();
+
+    // =========================
+    // RESPONSE
+    // =========================
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Password changed successfully",
+    });
+  } catch (error) {
+    console.error(
+      "Change Password Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Server error while changing password",
     });
   }
 };
@@ -237,6 +600,7 @@ const login = async (req, res) => {
 // =========================
 // FORGOT PASSWORD
 // =========================
+
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -248,7 +612,6 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Always return generic message for security
     const genericMessage =
       "If an account exists with this email, a password reset link has been sent.";
 
@@ -257,27 +620,34 @@ const forgotPassword = async (req, res) => {
     });
 
     if (!user) {
-      // Don't reveal whether email exists
       return res.status(200).json({
         success: true,
         message: genericMessage,
       });
     }
 
-    // Generate reset token
+    // =========================
+    // RESET TOKEN
+    // =========================
+
     const resetToken = crypto
       .randomBytes(32)
       .toString("hex");
 
-    // Token expires in 15 minutes
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = new Date(
-      Date.now() + 15 * 60 * 1000
-    );
+    user.resetPasswordToken =
+      resetToken;
+
+    user.resetPasswordExpires =
+      new Date(
+        Date.now() + 15 * 60 * 1000
+      );
 
     await user.save();
 
-    // Send password reset email
+    // =========================
+    // SEND EMAIL
+    // =========================
+
     try {
       await sendPasswordResetEmail(
         user.email,
@@ -285,8 +655,16 @@ const forgotPassword = async (req, res) => {
         resetToken
       );
     } catch (emailErr) {
-      console.warn("⚠️ Warning: Password reset email sending failed:", emailErr.message);
-      console.log(`🔗 Password Reset Link for ${user.email}: ${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${resetToken}`);
+      console.warn(
+        "⚠️ Warning: Password reset email sending failed:",
+        emailErr.message
+      );
+
+      console.log(
+        `🔗 Password Reset Link for ${user.email}: ${
+          process.env.CLIENT_URL || "http://localhost:5173"
+        }/reset-password/${resetToken}`
+      );
     }
 
     return res.status(200).json({
@@ -294,11 +672,15 @@ const forgotPassword = async (req, res) => {
       message: genericMessage,
     });
   } catch (error) {
-    console.error("Forgot Password Error:", error.message);
+    console.error(
+      "Forgot Password Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error. Please try again later.",
+      message:
+        "Server error. Please try again later.",
     });
   }
 };
@@ -306,40 +688,60 @@ const forgotPassword = async (req, res) => {
 // =========================
 // RESET PASSWORD
 // =========================
+
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
-    const { password, confirmPassword } = req.body;
+
+    const {
+      password,
+      confirmPassword,
+    } = req.body;
+
+    // =========================
+    // TOKEN VALIDATION
+    // =========================
 
     if (!token) {
       return res.status(400).json({
         success: false,
-        message: "Reset token is required",
+        message:
+          "Reset token is required",
       });
     }
+
+    // =========================
+    // PASSWORD VALIDATION
+    // =========================
 
     if (!password || !confirmPassword) {
       return res.status(400).json({
         success: false,
-        message: "Password and confirm password are required",
+        message:
+          "Password and confirm password are required",
       });
     }
 
     if (password.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters",
+        message:
+          "Password must be at least 6 characters",
       });
     }
 
     if (password !== confirmPassword) {
       return res.status(400).json({
         success: false,
-        message: "Passwords do not match",
+        message:
+          "Passwords do not match",
       });
     }
 
-    // Find user with valid reset token
+    // =========================
+    // FIND USER
+    // =========================
+
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: {
@@ -350,38 +752,70 @@ const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Password reset link is invalid or has expired.",
+        message:
+          "Password reset link is invalid or has expired.",
       });
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // =========================
+    // HASH PASSWORD
+    // =========================
 
-    // Update password and clear reset token
-    user.password = hashedPassword;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    const hashedPassword =
+      await bcrypt.hash(
+        password,
+        12
+      );
+
+    user.password =
+      hashedPassword;
+
+    // =========================
+    // CLEAR RESET TOKEN
+    // =========================
+
+    user.resetPasswordToken =
+      null;
+
+    user.resetPasswordExpires =
+      null;
 
     await user.save();
 
+    // =========================
+    // RESPONSE
+    // =========================
+
     return res.status(200).json({
       success: true,
-      message: "Password reset successfully! You can now log in with your new password.",
+      message:
+        "Password reset successfully! You can now log in with your new password.",
     });
   } catch (error) {
-    console.error("Reset Password Error:", error.message);
+    console.error(
+      "Reset Password Error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Server error during password reset. Please try again.",
+      message:
+        "Server error during password reset",
     });
   }
 };
+
+// =========================
+// EXPORTS
+// =========================
 
 module.exports = {
   register,
   verifyEmail,
   login,
+  getMe,
+  updateProfile,
+  changePassword,
   forgotPassword,
   resetPassword,
 };
