@@ -31,6 +31,7 @@ import Cart from "./pages/Cart";
 import VerifyEmail from "./pages/VerifyEmail";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
+import Wishlist from "./pages/Wishlist"; 
 
 // =========================================================
 // ADMIN PAGES
@@ -150,6 +151,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <Cart />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Wishlist */}
+
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <Wishlist />
               </ProtectedRoute>
             }
           />

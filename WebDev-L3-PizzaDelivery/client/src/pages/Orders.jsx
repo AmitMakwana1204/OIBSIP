@@ -1174,7 +1174,7 @@ export default function Orders() {
                 </p>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                 {previousOrders.map((ord) => {
                   const orderId =
                     ord.orderId ||

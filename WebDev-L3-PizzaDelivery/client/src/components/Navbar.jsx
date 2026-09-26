@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 import {
   ShoppingCart,
@@ -13,20 +17,55 @@ import {
   Pizza,
   Menu,
   X,
+  Heart,
 } from "lucide-react";
+
+const WISHLIST_PREFIX = "pizzaWishlist_";
+
+const getWishlistKey = () => {
+  try {
+    const storedUser =
+      localStorage.getItem("pizzahub_user");
+
+    if (!storedUser) {
+      return `${WISHLIST_PREFIX}guest`;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    const userId =
+      user?._id ||
+      user?.id ||
+      user?.email ||
+      "guest";
+
+    return `${WISHLIST_PREFIX}${String(userId)}`;
+  } catch (error) {
+    console.error(
+      "Wishlist key error:",
+      error
+    );
+
+    return `${WISHLIST_PREFIX}guest`;
+  }
+};
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
 
   // =========================================================
   // PROFILE
   // =========================================================
 
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [profileOpen, setProfileOpen] =
+    useState(false);
+
+  const [user, setUser] =
+    useState(null);
 
   const profileRef = useRef(null);
 
@@ -34,41 +73,138 @@ export default function Navbar() {
   // CART COUNT
   // =========================================================
 
-  const [cartCount, setCartCount] = useState(0);
+  const [cartCount, setCartCount] =
+    useState(0);
 
   const updateCartCount = () => {
     try {
-      const savedCart = localStorage.getItem("pizzaCart");
+      const savedCart =
+        localStorage.getItem("pizzaCart");
 
-      const cart = savedCart ? JSON.parse(savedCart) : [];
+      const cart = savedCart
+        ? JSON.parse(savedCart)
+        : [];
 
       const count = cart.reduce(
-        (total, item) => total + (Number(item.quantity) || 0),
+        (total, item) =>
+          total +
+          (Number(item.quantity) || 0),
         0
       );
 
       setCartCount(count);
     } catch (error) {
-      console.error("Cart count error:", error);
+      console.error(
+        "Cart count error:",
+        error
+      );
+
       setCartCount(0);
     }
   };
 
   // =========================================================
-  // LOAD CART COUNT
+  // WISHLIST COUNT
+  // =========================================================
+
+  const [wishlistCount, setWishlistCount] =
+    useState(0);
+
+  const updateWishlistCount = () => {
+    try {
+      const key = getWishlistKey();
+
+      const savedWishlist =
+        localStorage.getItem(key);
+
+      const wishlist = savedWishlist
+        ? JSON.parse(savedWishlist)
+        : [];
+
+      setWishlistCount(
+        Array.isArray(wishlist)
+          ? wishlist.length
+          : 0
+      );
+    } catch (error) {
+      console.error(
+        "Wishlist count error:",
+        error
+      );
+
+      setWishlistCount(0);
+    }
+  };
+
+  // =========================================================
+  // LOAD CART
   // =========================================================
 
   useEffect(() => {
     updateCartCount();
 
-    window.addEventListener("cartUpdated", updateCartCount);
-    window.addEventListener("storage", updateCartCount);
+    window.addEventListener(
+      "cartUpdated",
+      updateCartCount
+    );
+
+    window.addEventListener(
+      "storage",
+      updateCartCount
+    );
 
     return () => {
-      window.removeEventListener("cartUpdated", updateCartCount);
-      window.removeEventListener("storage", updateCartCount);
+      window.removeEventListener(
+        "cartUpdated",
+        updateCartCount
+      );
+
+      window.removeEventListener(
+        "storage",
+        updateCartCount
+      );
     };
   }, []);
+
+  // =========================================================
+  // LOAD WISHLIST
+  // =========================================================
+
+  useEffect(() => {
+    updateWishlistCount();
+
+    window.addEventListener(
+      "wishlistUpdated",
+      updateWishlistCount
+    );
+
+    window.addEventListener(
+      "storage",
+      updateWishlistCount
+    );
+
+    window.addEventListener(
+      "authChanged",
+      updateWishlistCount
+    );
+
+    return () => {
+      window.removeEventListener(
+        "wishlistUpdated",
+        updateWishlistCount
+      );
+
+      window.removeEventListener(
+        "storage",
+        updateWishlistCount
+      );
+
+      window.removeEventListener(
+        "authChanged",
+        updateWishlistCount
+      );
+    };
+  }, [location.pathname]);
 
   // =========================================================
   // LOAD USER
@@ -76,8 +212,15 @@ export default function Navbar() {
 
   const loadUser = () => {
     try {
-      const token = localStorage.getItem("pizzahub_token");
-      const storedUser = localStorage.getItem("pizzahub_user");
+      const token =
+        localStorage.getItem(
+          "pizzahub_token"
+        );
+
+      const storedUser =
+        localStorage.getItem(
+          "pizzahub_user"
+        );
 
       if (!token) {
         setUser(null);
@@ -85,12 +228,18 @@ export default function Navbar() {
       }
 
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        setUser(
+          JSON.parse(storedUser)
+        );
       } else {
         setUser(null);
       }
     } catch (error) {
-      console.error("Load user error:", error);
+      console.error(
+        "Load user error:",
+        error
+      );
+
       setUser(null);
     }
   };
@@ -98,39 +247,66 @@ export default function Navbar() {
   useEffect(() => {
     loadUser();
 
-    window.addEventListener("authChanged", loadUser);
-    window.addEventListener("storage", loadUser);
+    window.addEventListener(
+      "authChanged",
+      loadUser
+    );
+
+    window.addEventListener(
+      "storage",
+      loadUser
+    );
 
     return () => {
-      window.removeEventListener("authChanged", loadUser);
-      window.removeEventListener("storage", loadUser);
+      window.removeEventListener(
+        "authChanged",
+        loadUser
+      );
+
+      window.removeEventListener(
+        "storage",
+        loadUser
+      );
     };
   }, [location.pathname]);
 
   // =========================================================
-  // LOGGED-IN STATUS
+  // LOGGED IN
   // =========================================================
 
-  const isLoggedIn = !!localStorage.getItem("pizzahub_token");
+  const isLoggedIn =
+    !!localStorage.getItem(
+      "pizzahub_token"
+    );
 
   // =========================================================
-  // CLOSE PROFILE WHEN CLICKING OUTSIDE
+  // CLOSE PROFILE
   // =========================================================
 
   useEffect(() => {
-    const handleOutsideClick = (event) => {
+    const handleOutsideClick = (
+      event
+    ) => {
       if (
         profileRef.current &&
-        !profileRef.current.contains(event.target)
+        !profileRef.current.contains(
+          event.target
+        )
       ) {
         setProfileOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
     };
   }, []);
 
@@ -142,7 +318,9 @@ export default function Navbar() {
     navigate("/dashboard#search");
 
     setTimeout(() => {
-      document.getElementById("pizza-search")?.focus();
+      document
+        .getElementById("pizza-search")
+        ?.focus();
     }, 100);
   };
 
@@ -151,14 +329,21 @@ export default function Navbar() {
   // =========================================================
 
   const handleLogout = () => {
-    localStorage.removeItem("pizzahub_token");
-    localStorage.removeItem("pizzahub_user");
+    localStorage.removeItem(
+      "pizzahub_token"
+    );
+
+    localStorage.removeItem(
+      "pizzahub_user"
+    );
 
     setUser(null);
     setProfileOpen(false);
     setMobileOpen(false);
 
-    window.dispatchEvent(new Event("authChanged"));
+    window.dispatchEvent(
+      new Event("authChanged")
+    );
 
     navigate("/login");
   };
@@ -167,7 +352,8 @@ export default function Navbar() {
   // ACTIVE NAV
   // =========================================================
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) =>
+    location.pathname === path;
 
   // =========================================================
   // NAV ITEMS
@@ -193,7 +379,7 @@ export default function Navbar() {
   ];
 
   // =========================================================
-  // DISPLAY USER NAME
+  // USER NAME
   // =========================================================
 
   const getUserName = () => {
@@ -207,9 +393,8 @@ export default function Navbar() {
     );
   };
 
-  const getUserEmail = () => {
-    return user?.email || "";
-  };
+  const getUserEmail = () =>
+    user?.email || "";
 
   // =========================================================
   // RENDER
@@ -227,14 +412,14 @@ export default function Navbar() {
 
           <div className="h-[76px] flex items-center justify-between">
 
-            {/* =================================================
-                LOGO
-            ================================================== */}
+            {/* LOGO */}
 
             <Link
               to="/"
               className="flex items-center gap-2.5 group"
-              onClick={() => setMobileOpen(false)}
+              onClick={() =>
+                setMobileOpen(false)
+              }
             >
 
               <div className="relative">
@@ -270,15 +455,13 @@ export default function Navbar() {
 
             </Link>
 
-            {/* =================================================
-                DESKTOP NAVIGATION
-            ================================================== */}
+            {/* DESKTOP NAVIGATION */}
 
             <nav className="hidden lg:flex items-center gap-1">
 
               {navItems.map((item) => {
-
-                const active = isActive(item.path);
+                const active =
+                  isActive(item.path);
 
                 return (
                   <Link
@@ -299,20 +482,15 @@ export default function Navbar() {
 
                   </Link>
                 );
-
               })}
 
             </nav>
 
-            {/* =================================================
-                ACTIONS
-            ================================================== */}
+            {/* ACTIONS */}
 
             <div className="flex items-center gap-2">
 
-              {/* =================================================
-                  SEARCH
-              ================================================== */}
+              {/* SEARCH */}
 
               <button
                 type="button"
@@ -323,9 +501,41 @@ export default function Navbar() {
                 <Search size={18} />
               </button>
 
-              {/* =================================================
-                  CART
-              ================================================== */}
+              {/* LIKE */}
+
+              <Link
+                to="/wishlist"
+                onClick={() =>
+                  setMobileOpen(false)
+                }
+                className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition ${
+                  isActive("/wishlist")
+                    ? "bg-red-50 text-red-600"
+                    : "bg-gray-50 border border-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-600"
+                }`}
+                aria-label="Wishlist"
+              >
+
+                <Heart
+                  size={19}
+                  className={
+                    isActive("/wishlist")
+                      ? "fill-red-600"
+                      : ""
+                  }
+                />
+
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                    {wishlistCount > 99
+                      ? "99+"
+                      : wishlistCount}
+                  </span>
+                )}
+
+              </Link>
+
+              {/* CART */}
 
               <Link
                 to="/cart"
@@ -341,15 +551,15 @@ export default function Navbar() {
 
                 {cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                    {cartCount > 99 ? "99+" : cartCount}
+                    {cartCount > 99
+                      ? "99+"
+                      : cartCount}
                   </span>
                 )}
 
               </Link>
 
-              {/* =================================================
-                  PROFILE
-              ================================================== */}
+              {/* PROFILE */}
 
               <div
                 className="relative hidden sm:block"
@@ -359,7 +569,9 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() =>
-                    setProfileOpen((prev) => !prev)
+                    setProfileOpen(
+                      (prev) => !prev
+                    )
                   }
                   className={`w-10 h-10 rounded-xl flex items-center justify-center transition ${
                     profileOpen
@@ -367,22 +579,20 @@ export default function Navbar() {
                       : "bg-red-50 text-red-600 hover:bg-red-100"
                   }`}
                   aria-label="Account"
-                  aria-expanded={profileOpen}
+                  aria-expanded={
+                    profileOpen
+                  }
                 >
                   <User size={19} />
                 </button>
 
-                {/* =================================================
-                    PROFILE DROPDOWN
-                ================================================== */}
+                {/* PROFILE DROPDOWN */}
 
                 {profileOpen && (
                   <div className="absolute right-0 top-12 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[100]">
 
                     {isLoggedIn ? (
                       <>
-                        {/* USER HEADER */}
-
                         <div className="px-4 py-4 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-100">
 
                           <div className="flex items-center gap-3">
@@ -412,13 +622,17 @@ export default function Navbar() {
                         <Link
                           to="/profile"
                           onClick={() =>
-                            setProfileOpen(false)
+                            setProfileOpen(
+                              false
+                            )
                           }
                           className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-gray-50 transition"
                         >
 
                           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
-                            <UserCircle size={18} />
+                            <UserCircle
+                              size={18}
+                            />
                           </div>
 
                           <div>
@@ -433,12 +647,48 @@ export default function Navbar() {
 
                         </Link>
 
+                        {/* WISHLIST */}
+
+                        <Link
+                          to="/wishlist"
+                          onClick={() =>
+                            setProfileOpen(
+                              false
+                            )
+                          }
+                          className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-gray-50 transition"
+                        >
+
+                          <div className="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
+                            <Heart
+                              size={18}
+                              className="fill-red-600"
+                            />
+                          </div>
+
+                          <div className="flex-1">
+                            <p className="text-sm font-bold">
+                              My Wishlist
+                            </p>
+
+                            <p className="text-[11px] text-gray-400">
+                              {wishlistCount} saved pizza
+                              {wishlistCount !== 1
+                                ? "s"
+                                : ""}
+                            </p>
+                          </div>
+
+                        </Link>
+
                         {/* ORDERS */}
 
                         <Link
                           to="/orders"
                           onClick={() =>
-                            setProfileOpen(false)
+                            setProfileOpen(
+                              false
+                            )
                           }
                           className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-gray-50 transition"
                         >
@@ -459,8 +709,6 @@ export default function Navbar() {
 
                         </Link>
 
-                        {/* DIVIDER */}
-
                         <div className="border-t border-gray-100" />
 
                         {/* LOGOUT */}
@@ -472,17 +720,22 @@ export default function Navbar() {
                         >
 
                           <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
-                            <LogOut size={18} />
+                            <LogOut
+                              size={18}
+                            />
                           </div>
 
                           <div className="text-left">
+
                             <p className="text-sm font-bold">
                               Logout
                             </p>
 
                             <p className="text-[11px] text-red-400">
-                              Sign out from your account
+                              Sign out from your
+                              account
                             </p>
+
                           </div>
 
                         </button>
@@ -490,8 +743,6 @@ export default function Navbar() {
                       </>
                     ) : (
                       <>
-                        {/* NOT LOGGED IN */}
-
                         <div className="px-4 py-5 text-center bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-100">
 
                           <div className="w-12 h-12 mx-auto rounded-full bg-red-600 text-white flex items-center justify-center mb-2">
@@ -503,24 +754,26 @@ export default function Navbar() {
                           </p>
 
                           <p className="text-xs text-gray-500 mt-1">
-                            Login to access your account
+                            Login to access your
+                            account
                           </p>
 
                         </div>
 
-                        {/* LOGIN */}
-
                         <Link
                           to="/login"
                           onClick={() =>
-                            setProfileOpen(false)
+                            setProfileOpen(
+                              false
+                            )
                           }
                           className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-gray-50 transition"
                         >
 
-                          <div className="w-9 h-9 rounded-lg bg-red-50 text-red-600 flex items-center justify-center">
-                            <LogIn size={18} />
-                          </div>
+                          <LogIn
+                            size={18}
+                            className="text-red-600"
+                          />
 
                           <div>
                             <p className="text-sm font-bold">
@@ -534,19 +787,17 @@ export default function Navbar() {
 
                         </Link>
 
-                        {/* REGISTER */}
-
                         <Link
                           to="/register"
                           onClick={() =>
-                            setProfileOpen(false)
+                            setProfileOpen(
+                              false
+                            )
                           }
                           className="flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-gray-50 transition"
                         >
 
-                          <div className="w-9 h-9 rounded-lg bg-gray-100 text-gray-700 flex items-center justify-center">
-                            <UserPlus size={18} />
-                          </div>
+                          <UserPlus size={18} />
 
                           <div>
                             <p className="text-sm font-bold">
@@ -568,14 +819,14 @@ export default function Navbar() {
 
               </div>
 
-              {/* =================================================
-                  MOBILE MENU BUTTON
-              ================================================== */}
+              {/* MOBILE MENU */}
 
               <button
                 type="button"
                 onClick={() =>
-                  setMobileOpen((prev) => !prev)
+                  setMobileOpen(
+                    (prev) => !prev
+                  )
                 }
                 className="lg:hidden w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-700 hover:bg-gray-100 transition"
                 aria-label="Toggle menu"
@@ -593,26 +844,25 @@ export default function Navbar() {
 
           </div>
 
-          {/* =================================================
-              MOBILE NAVIGATION
-          ================================================== */}
+          {/* MOBILE */}
 
           {mobileOpen && (
-
             <div className="lg:hidden border-t border-gray-100 py-4">
 
               <nav className="space-y-1">
 
                 {navItems.map((item) => {
-
-                  const active = isActive(item.path);
+                  const active =
+                    isActive(item.path);
 
                   return (
                     <Link
                       key={item.path}
                       to={item.path}
                       onClick={() =>
-                        setMobileOpen(false)
+                        setMobileOpen(
+                          false
+                        )
                       }
                       className={`flex items-center justify-between px-4 py-3.5 rounded-xl font-bold text-sm transition ${
                         active
@@ -631,21 +881,61 @@ export default function Navbar() {
 
                     </Link>
                   );
-
                 })}
 
               </nav>
 
-              {/* =================================================
-                  MOBILE PROFILE
-              ================================================== */}
+              {/* MOBILE WISHLIST */}
+
+              <Link
+                to="/wishlist"
+                onClick={() =>
+                  setMobileOpen(false)
+                }
+                className={`mt-3 flex items-center justify-between w-full py-3.5 px-4 rounded-xl font-black text-sm ${
+                  isActive("/wishlist")
+                    ? "bg-red-600 text-white"
+                    : "bg-red-50 text-red-600"
+                }`}
+              >
+
+                <span className="flex items-center gap-2">
+
+                  <Heart
+                    size={18}
+                    className={
+                      isActive("/wishlist")
+                        ? "fill-white"
+                        : "fill-red-600"
+                    }
+                  />
+
+                  My Wishlist
+
+                </span>
+
+                {wishlistCount > 0 && (
+                  <span
+                    className={`min-w-6 h-6 px-1 rounded-full flex items-center justify-center text-xs ${
+                      isActive("/wishlist")
+                        ? "bg-white text-red-600"
+                        : "bg-red-600 text-white"
+                    }`}
+                  >
+                    {wishlistCount > 99
+                      ? "99+"
+                      : wishlistCount}
+                  </span>
+                )}
+
+              </Link>
+
+              {/* MOBILE PROFILE */}
 
               <div className="mt-3 border-t border-gray-100 pt-3">
 
                 {isLoggedIn ? (
                   <>
-                    {/* USER INFO */}
-
                     <div className="px-4 py-3 rounded-xl bg-red-50 mb-2">
 
                       <div className="flex items-center gap-3">
@@ -670,105 +960,90 @@ export default function Navbar() {
 
                     </div>
 
-                    {/* MOBILE PROFILE */}
-
                     <Link
                       to="/profile"
                       onClick={() =>
-                        setMobileOpen(false)
+                        setMobileOpen(
+                          false
+                        )
                       }
                       className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50"
                     >
-
                       <UserCircle size={18} />
 
                       <span className="font-bold text-sm">
                         My Profile
                       </span>
-
                     </Link>
-
-                    {/* MOBILE ORDERS */}
 
                     <Link
                       to="/orders"
                       onClick={() =>
-                        setMobileOpen(false)
+                        setMobileOpen(
+                          false
+                        )
                       }
                       className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50"
                     >
-
                       <Package size={18} />
 
                       <span className="font-bold text-sm">
                         My Orders
                       </span>
-
                     </Link>
-
-                    {/* MOBILE LOGOUT */}
 
                     <button
                       type="button"
                       onClick={handleLogout}
                       className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-600 hover:bg-red-50"
                     >
-
                       <LogOut size={18} />
 
                       <span className="font-bold text-sm">
                         Logout
                       </span>
-
                     </button>
 
                   </>
                 ) : (
                   <>
-                    {/* MOBILE LOGIN */}
-
                     <Link
                       to="/login"
                       onClick={() =>
-                        setMobileOpen(false)
+                        setMobileOpen(
+                          false
+                        )
                       }
                       className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50"
                     >
-
                       <LogIn size={18} />
 
                       <span className="font-bold text-sm">
                         Login
                       </span>
-
                     </Link>
-
-                    {/* MOBILE REGISTER */}
 
                     <Link
                       to="/register"
                       onClick={() =>
-                        setMobileOpen(false)
+                        setMobileOpen(
+                          false
+                        )
                       }
                       className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-50"
                     >
-
                       <UserPlus size={18} />
 
                       <span className="font-bold text-sm">
                         Create Account
                       </span>
-
                     </Link>
-
                   </>
                 )}
 
               </div>
 
-              {/* =================================================
-                  MOBILE CART
-              ================================================== */}
+              {/* MOBILE CART */}
 
               <Link
                 to="/cart"
@@ -779,24 +1054,21 @@ export default function Navbar() {
               >
 
                 <span className="flex items-center gap-2">
-
                   <ShoppingCart size={17} />
-
                   Shopping Cart
-
                 </span>
 
                 {cartCount > 0 && (
                   <span className="bg-red-600 text-white min-w-6 h-6 px-1 rounded-full flex items-center justify-center text-xs">
-                    {cartCount > 99 ? "99+" : cartCount}
+                    {cartCount > 99
+                      ? "99+"
+                      : cartCount}
                   </span>
                 )}
 
               </Link>
 
-              {/* =================================================
-                  MOBILE SEARCH
-              ================================================== */}
+              {/* MOBILE SEARCH */}
 
               <button
                 type="button"
@@ -806,16 +1078,11 @@ export default function Navbar() {
                 }}
                 className="mt-3 flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gray-100 text-gray-800 font-black text-sm hover:bg-red-50 hover:text-red-600 transition"
               >
-
                 <Search size={17} />
-
                 Search Pizza
-
               </button>
 
-              {/* =================================================
-                  MOBILE CTA
-              ================================================== */}
+              {/* MOBILE BUILD */}
 
               <Link
                 to="/pizza-builder"
@@ -824,15 +1091,11 @@ export default function Navbar() {
                 }
                 className="mt-3 flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-red-600 text-white font-black text-sm hover:bg-red-700 transition shadow-lg shadow-red-600/20"
               >
-
                 <Pizza size={17} />
-
                 Build Your Pizza
-
               </Link>
 
             </div>
-
           )}
 
         </div>

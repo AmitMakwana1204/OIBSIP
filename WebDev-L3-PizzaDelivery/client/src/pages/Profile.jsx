@@ -589,13 +589,13 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <button
+                  {/* <button
                     type="button"
                     title="Change profile photo"
                     className="absolute -right-2 -bottom-2 w-10 h-10 rounded-xl bg-gray-900 text-white flex items-center justify-center shadow-lg border-4 border-white hover:bg-red-600 transition"
                   >
                     <Camera size={17} />
-                  </button>
+                  </button> */}
 
                 </div>
 

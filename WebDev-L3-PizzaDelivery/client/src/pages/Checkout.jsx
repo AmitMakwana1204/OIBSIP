@@ -14,15 +14,21 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { createUserOrder } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const CART_KEY = "pizzaCart";
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
+
+  // =========================================================
+  // CHECKOUT FORM
+  // =========================================================
 
   const [form, setForm] = useState({
     name: "",
@@ -34,6 +40,24 @@ export default function Checkout() {
   });
 
   // =========================================================
+  // AUTO-FILL DELIVERY DETAILS FROM USER PROFILE
+  // =========================================================
+
+  useEffect(() => {
+    if (!user) return;
+
+    setForm((prev) => ({
+      ...prev,
+
+      name: prev.name || user.name || "",
+      phone: prev.phone || user.phone || "",
+      address: prev.address || user.address || "",
+      city: prev.city || user.city || "",
+      pincode: prev.pincode || user.pincode || "",
+    }));
+  }, [user]);
+
+  // =========================================================
   // LOAD CART
   // =========================================================
 
@@ -41,14 +65,9 @@ export default function Checkout() {
     try {
       const savedCart = localStorage.getItem(CART_KEY);
 
-      const parsedCart = savedCart
-        ? JSON.parse(savedCart)
-        : [];
+      const parsedCart = savedCart ? JSON.parse(savedCart) : [];
 
-      if (
-        !Array.isArray(parsedCart) ||
-        parsedCart.length === 0
-      ) {
+      if (!Array.isArray(parsedCart) || parsedCart.length === 0) {
         navigate("/cart");
         return;
       }
@@ -76,33 +95,24 @@ export default function Checkout() {
   }, [cart]);
 
   // =========================================================
-  // DELIVERY
+  // DELIVERY FEE
   // =========================================================
 
   const deliveryFee =
-    subtotal === 0
-      ? 0
-      : subtotal >= 499
-      ? 0
-      : 40;
+    subtotal === 0 ? 0 : subtotal >= 499 ? 0 : 40;
 
   // =========================================================
   // DISCOUNT
   // =========================================================
 
   const discount =
-    subtotal >= 999
-      ? Math.round(subtotal * 0.2)
-      : 0;
+    subtotal >= 999 ? Math.round(subtotal * 0.2) : 0;
 
   // =========================================================
   // TOTAL
   // =========================================================
 
-  const total =
-    subtotal +
-    deliveryFee -
-    discount;
+  const total = subtotal + deliveryFee - discount;
 
   // =========================================================
   // TOTAL ITEMS
@@ -110,8 +120,7 @@ export default function Checkout() {
 
   const totalItems = useMemo(() => {
     return cart.reduce(
-      (sum, item) =>
-        sum + (Number(item.quantity) || 1),
+      (sum, item) => sum + (Number(item.quantity) || 1),
       0
     );
   }, [cart]);
@@ -234,10 +243,7 @@ export default function Checkout() {
       );
 
       if (invalidItem) {
-        console.error(
-          "Invalid cart item:",
-          invalidItem
-        );
+        console.error("Invalid cart item:", invalidItem);
 
         alert(
           "Product information is missing. Please remove this item from cart and add it again."
@@ -253,10 +259,18 @@ export default function Checkout() {
       const orderData = {
         items,
 
+        // ===================================================
+        // CUSTOMER DETAILS
+        // ===================================================
+
         customer: {
           name: form.name.trim(),
           phone: form.phone.trim(),
         },
+
+        // ===================================================
+        // DELIVERY ADDRESS
+        // ===================================================
 
         shippingAddress: {
           address: form.address.trim(),
@@ -264,7 +278,15 @@ export default function Checkout() {
           pincode: form.pincode.trim(),
         },
 
+        // ===================================================
+        // PAYMENT
+        // ===================================================
+
         paymentMethod: form.paymentMethod,
+
+        // ===================================================
+        // PRICING
+        // ===================================================
 
         subtotal: Number(subtotal),
         deliveryFee: Number(deliveryFee),
@@ -276,37 +298,18 @@ export default function Checkout() {
       // DEBUG
       // =====================================================
 
-      console.log(
-        "================================="
-      );
-
-      console.log(
-        "ORDER PAYLOAD:"
-      );
-
-      console.log(
-        JSON.stringify(
-          orderData,
-          null,
-          2
-        )
-      );
-
-      console.log(
-        "================================="
-      );
+      console.log("=================================");
+      console.log("ORDER PAYLOAD:");
+      console.log(JSON.stringify(orderData, null, 2));
+      console.log("=================================");
 
       // =====================================================
-      // API
+      // CREATE ORDER
       // =====================================================
 
-      const response =
-        await createUserOrder(orderData);
+      const response = await createUserOrder(orderData);
 
-      console.log(
-        "ORDER CREATED:",
-        response
-      );
+      console.log("ORDER CREATED:", response);
 
       // =====================================================
       // CLEAR CART
@@ -314,9 +317,7 @@ export default function Checkout() {
 
       localStorage.removeItem(CART_KEY);
 
-      window.dispatchEvent(
-        new Event("cartUpdated")
-      );
+      window.dispatchEvent(new Event("cartUpdated"));
 
       // =====================================================
       // ORDER SUCCESS
@@ -333,14 +334,8 @@ export default function Checkout() {
         },
       });
     } catch (error) {
-      console.error(
-        "================================="
-      );
-
-      console.error(
-        "PLACE ORDER ERROR:",
-        error
-      );
+      console.error("=================================");
+      console.error("PLACE ORDER ERROR:", error);
 
       console.error(
         "STATUS:",
@@ -357,9 +352,7 @@ export default function Checkout() {
         error?.config?.data
       );
 
-      console.error(
-        "================================="
-      );
+      console.error("=================================");
 
       const backendMessage =
         error?.response?.data?.message;
@@ -482,7 +475,7 @@ export default function Checkout() {
                         </h2>
 
                         <p className="text-sm text-gray-500 mt-1">
-                          Where should we deliver your pizza?
+                          Your saved profile details are automatically filled.
                         </p>
 
                       </div>
@@ -493,7 +486,9 @@ export default function Checkout() {
 
                   <div className="p-6 grid md:grid-cols-2 gap-5">
 
-                    {/* NAME */}
+                    {/* =========================================
+                        NAME
+                    ========================================= */}
 
                     <div>
 
@@ -522,7 +517,9 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* PHONE */}
+                    {/* =========================================
+                        PHONE
+                    ========================================= */}
 
                     <div>
 
@@ -553,7 +550,9 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* ADDRESS */}
+                    {/* =========================================
+                        ADDRESS
+                    ========================================= */}
 
                     <div className="md:col-span-2">
 
@@ -573,7 +572,9 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* CITY */}
+                    {/* =========================================
+                        CITY
+                    ========================================= */}
 
                     <div>
 
@@ -593,7 +594,9 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* PINCODE */}
+                    {/* =========================================
+                        PINCODE
+                    ========================================= */}
 
                     <div>
 
@@ -651,7 +654,9 @@ export default function Checkout() {
 
                   <div className="p-6 space-y-3">
 
-                    {/* COD */}
+                    {/* =========================================
+                        COD
+                    ========================================= */}
 
                     <label
                       className={`flex items-center gap-4 border rounded-2xl p-4 cursor-pointer transition ${
@@ -686,7 +691,9 @@ export default function Checkout() {
 
                     </label>
 
-                    {/* ONLINE */}
+                    {/* =========================================
+                        ONLINE
+                    ========================================= */}
 
                     <label
                       className={`flex items-center gap-4 border rounded-2xl p-4 cursor-pointer transition ${
@@ -791,8 +798,7 @@ export default function Checkout() {
                           <div className="flex-1 min-w-0">
 
                             <p className="font-bold truncate">
-                              {item.name ||
-                                "Pizza"}
+                              {item.name || "Pizza"}
                             </p>
 
                             <p className="text-xs text-gray-500 mt-1">
