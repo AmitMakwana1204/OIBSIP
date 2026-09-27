@@ -30,6 +30,7 @@ import Orders from "./pages/Orders";
 import Cart from "./pages/Cart";
 import VerifyEmail from "./pages/VerifyEmail";
 import Checkout from "./pages/Checkout";
+import Payment from "./pages/Payment"; 
 import OrderSuccess from "./pages/OrderSuccess";
 import Wishlist from "./pages/Wishlist"; 
 
@@ -173,6 +174,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <Checkout />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Payment */}
+
+          <Route
+            path="/payment"
+            element={
+              <ProtectedRoute>
+                <Payment />
               </ProtectedRoute>
             }
           />

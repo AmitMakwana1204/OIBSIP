@@ -512,87 +512,106 @@ const Dashboard = () => {
     detectLocation();
   }, []);
 
-  // ---------------------------------------------------------
-  // ADD TO CART
-  // ---------------------------------------------------------
+// ---------------------------------------------------------
+// ADD TO CART
+// ---------------------------------------------------------
 
-  const handleAddToCart = (pizza) => {
-    if (!pizza) return;
+const handleAddToCart = (pizza) => {
+  if (!pizza) return;
 
-    const pizzaId = normalizeId(
-      pizza?._id || pizza?.id
-    );
+  const pizzaId = normalizeId(
+    pizza?._id || pizza?.id
+  );
 
-    if (!pizzaId) return;
+  if (!pizzaId) return;
 
-    const price = Number(
-      pizza?.price ??
-        pizza?.sellingPrice ??
-        pizza?.salePrice ??
-        0
-    );
+  const price = Number(
+    pizza?.price ??
+      pizza?.sellingPrice ??
+      pizza?.salePrice ??
+      0
+  );
 
-    const oldPrice = Number(
-      pizza?.oldPrice ??
-        pizza?.originalPrice ??
-        pizza?.mrp ??
-        0
-    );
+  const oldPrice = Number(
+    pizza?.oldPrice ??
+      pizza?.originalPrice ??
+      pizza?.mrp ??
+      0
+  );
 
-    setCart((previousCart) => {
-      const existingItemIndex = previousCart.findIndex(
-        (item) =>
-          normalizeId(item?.id || item?._id) === pizzaId
-      );
+  try {
+    // Always get the latest cart directly from localStorage
+    const savedCart = localStorage.getItem(CART_KEY);
 
-      let updatedCart;
+    let currentCart = [];
 
-      if (existingItemIndex !== -1) {
-        updatedCart = [...previousCart];
+    if (savedCart) {
+      const parsedCart = JSON.parse(savedCart);
 
-        updatedCart[existingItemIndex] = {
-          ...updatedCart[existingItemIndex],
-          quantity:
-            Number(
-              updatedCart[existingItemIndex]?.quantity || 0
-            ) + 1,
-        };
-      } else {
-        updatedCart = [
-          ...previousCart,
-          {
-            id: pizzaId,
-            _id: pizza?._id || pizza?.id,
-            name: pizza?.name || "Pizza",
-            price,
-            oldPrice,
-            image:
-              pizza?.image ||
-              pizza?.imageUrl ||
-              pizza?.photo ||
-              "",
-            quantity: 1,
-          },
-        ];
+      if (Array.isArray(parsedCart)) {
+        currentCart = parsedCart;
       }
+    }
 
-      try {
-        localStorage.setItem(
-          CART_KEY,
-          JSON.stringify(updatedCart)
-        );
+    const existingItemIndex = currentCart.findIndex(
+      (item) =>
+        normalizeId(item?.id || item?._id) === pizzaId
+    );
 
-        window.dispatchEvent(
-          new Event("cartUpdated")
-        );
-      } catch (error) {
-        console.error("Cart save error:", error);
-      }
+    let updatedCart;
 
-      return updatedCart;
-    });
-  };
+    if (existingItemIndex !== -1) {
+      // Existing pizza → increase ONLY ONCE
+      updatedCart = [...currentCart];
 
+      updatedCart[existingItemIndex] = {
+        ...updatedCart[existingItemIndex],
+        quantity:
+          Number(
+            updatedCart[existingItemIndex]?.quantity || 0
+          ) + 1,
+      };
+    } else {
+      // New pizza → add quantity 1
+      updatedCart = [
+        ...currentCart,
+        {
+          id: pizzaId,
+          _id: pizza?._id || pizza?.id,
+          name: pizza?.name || "Pizza",
+          price,
+          oldPrice,
+          image:
+            pizza?.image ||
+            pizza?.imageUrl ||
+            pizza?.photo ||
+            "",
+          quantity: 1,
+        },
+      ];
+    }
+
+    // Save ONLY ONCE
+    localStorage.setItem(
+      CART_KEY,
+      JSON.stringify(updatedCart)
+    );
+
+    // Update React state
+    setCart(updatedCart);
+
+    // Notify other cart components
+    window.dispatchEvent(
+      new Event("cartUpdated")
+    );
+
+  } catch (error) {
+    console.error(
+      "Cart save error:",
+      error
+    );
+  }
+};
   // ---------------------------------------------------------
   // FILTER + SEARCH + SORT
   // ---------------------------------------------------------

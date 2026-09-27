@@ -1,8 +1,8 @@
-
 const mongoose = require("mongoose");
 
 const Order = require("../models/Order");
 const Inventory = require("../models/Inventory");
+const Notification = require("../models/Notification");
 
 // ==========================================
 // ORDER STATUS
@@ -110,13 +110,24 @@ const createOrder = async (req, res) => {
 
       const isValidObjectId =
         rawProductId &&
-        mongoose.Types.ObjectId.isValid(String(rawProductId));
+        mongoose.Types.ObjectId.isValid(
+          String(rawProductId)
+        );
 
       return {
-        product: isValidObjectId ? rawProductId : null,
+        product: isValidObjectId
+          ? rawProductId
+          : null,
+
         name: item.name || "Pizza",
+
         price: Number(item.price) || 0,
-        quantity: Math.max(1, Number(item.quantity) || 1),
+
+        quantity: Math.max(
+          1,
+          Number(item.quantity) || 1
+        ),
+
         image: item.image || "",
       };
     });
@@ -126,19 +137,27 @@ const createOrder = async (req, res) => {
     // ==========================================
 
     for (const item of normalizedItems) {
-      const inventoryItem = await Inventory.findOne({
-        name: {
-          $regex: new RegExp(
-            `^${item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-            "i"
-          ),
-        },
-      });
+      const escapedName = item.name.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+      const inventoryItem =
+        await Inventory.findOne({
+          name: {
+            $regex: new RegExp(
+              `^${escapedName}$`,
+              "i"
+            ),
+          },
+        });
 
       if (inventoryItem) {
         const requiredQty = item.quantity;
 
-        if (inventoryItem.stock < requiredQty) {
+        if (
+          inventoryItem.stock < requiredQty
+        ) {
           return res.status(400).json({
             success: false,
             message: `Insufficient stock for "${inventoryItem.name}". Only ${inventoryItem.stock} available.`,
@@ -152,14 +171,20 @@ const createOrder = async (req, res) => {
     // ==========================================
 
     for (const item of normalizedItems) {
-      const inventoryItem = await Inventory.findOne({
-        name: {
-          $regex: new RegExp(
-            `^${item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-            "i"
-          ),
-        },
-      });
+      const escapedName = item.name.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+      const inventoryItem =
+        await Inventory.findOne({
+          name: {
+            $regex: new RegExp(
+              `^${escapedName}$`,
+              "i"
+            ),
+          },
+        });
 
       if (inventoryItem) {
         inventoryItem.stock = Math.max(
@@ -176,7 +201,9 @@ const createOrder = async (req, res) => {
     // ==========================================
 
     const paymentStatus =
-      paymentMethod === "COD" ? "PENDING" : "PENDING";
+      paymentMethod === "COD"
+        ? "PENDING"
+        : "PENDING";
 
     // ==========================================
     // CREATE ORDER
@@ -199,23 +226,58 @@ const createOrder = async (req, res) => {
       },
 
       paymentMethod,
+
       paymentStatus,
 
       orderStatus: "PLACED",
 
       subtotal: Number(subtotal) || 0,
+
       deliveryFee: Number(deliveryFee) || 0,
+
       discount: Number(discount) || 0,
+
       total: Number(total) || 0,
     });
+
+    // ==========================================
+    // ADMIN NOTIFICATION - NEW ORDER
+    // ==========================================
+
+    try {
+      await Notification.create({
+        title: "New Order Received",
+
+        message: `New order #${newOrder._id
+          .toString()
+          .slice(-6)
+          .toUpperCase()} has been placed by ${
+          customer.name
+        }.`,
+        
+        type: "order",
+
+        orderId: newOrder._id,
+
+        read: false,
+      });
+    } catch (notificationError) {
+      // Notification failure should NOT
+      // fail the actual order.
+      console.error(
+        "New order notification error:",
+        notificationError
+      );
+    }
 
     // ==========================================
     // POPULATE USER
     // ==========================================
 
-    const populatedOrder = await Order.findById(
-      newOrder._id
-    ).populate("user", "name email");
+    const populatedOrder =
+      await Order.findById(
+        newOrder._id
+      ).populate("user", "name email");
 
     // ==========================================
     // RESPONSE
@@ -223,16 +285,24 @@ const createOrder = async (req, res) => {
 
     return res.status(201).json({
       success: true,
+
       message: "Order placed successfully.",
+
       order: populatedOrder,
+
       data: populatedOrder,
     });
   } catch (error) {
-    console.error("Create order error:", error);
+    console.error(
+      "Create order error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
+
       message: "Failed to create order.",
+
       error:
         process.env.NODE_ENV === "development"
           ? error.message
@@ -248,7 +318,8 @@ const createOrder = async (req, res) => {
 
 const getUserOrders = async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId =
+      req.user?.id || req.user?._id;
 
     if (!userId) {
       return res.status(401).json({
@@ -261,16 +332,24 @@ const getUserOrders = async (req, res) => {
       user: userId,
     })
       .populate("items.product")
-      .sort({ createdAt: -1 });
+      .sort({
+        createdAt: -1,
+      });
 
     return res.status(200).json({
       success: true,
+
       count: orders.length,
+
       orders,
+
       data: orders,
     });
   } catch (error) {
-    console.error("Get user orders error:", error);
+    console.error(
+      "Get user orders error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -286,16 +365,43 @@ const getUserOrders = async (req, res) => {
 
 const cancelUserOrder = async (req, res) => {
   try {
-    const userId = req.user?.id || req.user?._id;
+    const userId =
+      req.user?.id || req.user?._id;
+
     const { orderId } = req.params;
 
-    console.log("========== CANCEL DEBUG ==========");
-    console.log("req.params:", req.params);
-    console.log("orderId:", orderId);
-    console.log("req.user:", req.user);
-    console.log("userId:", userId);
-    console.log("user._id:", req.user?._id);
-    console.log("=================================");
+    console.log(
+      "========== CANCEL DEBUG =========="
+    );
+
+    console.log(
+      "req.params:",
+      req.params
+    );
+
+    console.log(
+      "orderId:",
+      orderId
+    );
+
+    console.log(
+      "req.user:",
+      req.user
+    );
+
+    console.log(
+      "userId:",
+      userId
+    );
+
+    console.log(
+      "user._id:",
+      req.user?._id
+    );
+
+    console.log(
+      "================================="
+    );
 
     if (!userId) {
       return res.status(401).json({
@@ -311,7 +417,11 @@ const cancelUserOrder = async (req, res) => {
       });
     }
 
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        orderId
+      )
+    ) {
       return res.status(400).json({
         success: false,
         message: "Invalid MongoDB order ID.",
@@ -319,12 +429,17 @@ const cancelUserOrder = async (req, res) => {
     }
 
     // ==========================================
-    // FIND ORDER BY MONGODB ID, THEN VERIFY OWNERSHIP
+    // FIND ORDER BY MONGODB ID
+    // THEN VERIFY OWNERSHIP
     // ==========================================
 
-    const orderById = await Order.findById(orderId);
+    const orderById =
+      await Order.findById(orderId);
 
-    console.log("ORDER BY ID:", orderById);
+    console.log(
+      "ORDER BY ID:",
+      orderById
+    );
 
     if (!orderById) {
       return res.status(404).json({
@@ -338,12 +453,16 @@ const cancelUserOrder = async (req, res) => {
       user: userId,
     });
 
-    console.log("ORDER WITH USER:", order);
+    console.log(
+      "ORDER WITH USER:",
+      order
+    );
 
     if (!order) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to cancel this order.",
+        message:
+          "You are not authorized to cancel this order.",
       });
     }
 
@@ -351,68 +470,134 @@ const cancelUserOrder = async (req, res) => {
     // CHECK CANCELLATION STATUS
     // ==========================================
 
-    if (!["PLACED", "CONFIRMED"].includes(order.orderStatus)) {
+    if (
+      !["PLACED", "CONFIRMED"].includes(
+        order.orderStatus
+      )
+    ) {
       return res.status(400).json({
         success: false,
+
         message:
           "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
       });
     }
 
-      // Claim the transition atomically so a repeated request cannot restore stock twice.
-      const cancelledOrder = await Order.findOneAndUpdate(
+    // ==========================================
+    // ATOMIC CANCEL
+    // ==========================================
+
+    const cancelledOrder =
+      await Order.findOneAndUpdate(
         {
           _id: orderId,
+
           user: userId,
-          orderStatus: { $in: ["PLACED", "CONFIRMED"] },
+
+          orderStatus: {
+            $in: [
+              "PLACED",
+              "CONFIRMED",
+            ],
+          },
         },
-        { $set: { orderStatus: "CANCELLED" } },
-        { returnDocument: "after", runValidators: true }
+
+        {
+          $set: {
+            orderStatus: "CANCELLED",
+          },
+        },
+
+        {
+          returnDocument: "after",
+          runValidators: true,
+        }
       );
 
-      if (!cancelledOrder) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
-        });
-      }
+    if (!cancelledOrder) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
+      });
+    }
 
     // ==========================================
     // RESTORE INVENTORY
     // ==========================================
-    // Since inventory was decreased when order was created,
-    // restore the quantity when user cancels the order.
 
     for (const item of cancelledOrder.items) {
-      const inventoryItem = await Inventory.findOne({
-        name: {
-          $regex: new RegExp(
-            `^${(item.name || "").replace(
-              /[.*+?^${}()|[\]\\]/g,
-              "\\$&"
-            )}$`,
-            "i"
-          ),
-        },
-      });
+      const escapedName = (
+        item.name || ""
+      ).replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&"
+      );
+
+      const inventoryItem =
+        await Inventory.findOne({
+          name: {
+            $regex: new RegExp(
+              `^${escapedName}$`,
+              "i"
+            ),
+          },
+        });
 
       if (inventoryItem) {
-        inventoryItem.stock += Number(item.quantity) || 0;
+        inventoryItem.stock +=
+          Number(item.quantity) || 0;
 
         await inventoryItem.save();
       }
     }
 
     // ==========================================
+    // ADMIN NOTIFICATION
+    // ORDER CANCELLED
+    // ==========================================
+
+    try {
+      await Notification.create({
+        title: "Order Cancelled",
+
+        message: `Order #${cancelledOrder._id
+          .toString()
+          .slice(-6)
+          .toUpperCase()} was cancelled by ${
+          cancelledOrder.customer?.name ||
+          "Customer"
+        }.`,
+        
+        type: "cancel",
+
+        orderId: cancelledOrder._id,
+
+        read: false,
+      });
+    } catch (notificationError) {
+      // Notification failure should NOT
+      // fail the cancellation.
+      console.error(
+        "Order cancellation notification error:",
+        notificationError
+      );
+    }
+
+    // ==========================================
     // POPULATE UPDATED ORDER
     // ==========================================
 
-    const populatedOrder = await Order.findById(
-      cancelledOrder._id
-    )
-      .populate("user", "name email")
-      .populate("items.product");
+    const populatedOrder =
+      await Order.findById(
+        cancelledOrder._id
+      )
+        .populate(
+          "user",
+          "name email"
+        )
+        .populate("items.product");
 
     // ==========================================
     // RESPONSE
@@ -420,16 +605,26 @@ const cancelUserOrder = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Order cancelled successfully.",
+
+      message:
+        "Order cancelled successfully.",
+
       order: populatedOrder,
+
       data: populatedOrder,
     });
   } catch (error) {
-    console.error("Cancel user order error:", error);
+    console.error(
+      "Cancel user order error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Failed to cancel order.",
+
+      message:
+        "Failed to cancel order.",
+
       error:
         process.env.NODE_ENV === "development"
           ? error.message
@@ -448,61 +643,78 @@ const getAllOrders = async (req, res) => {
     const orders = await Order.find()
       .populate("user", "name email")
       .populate("items.product")
-      .sort({ createdAt: -1 });
+      .sort({
+        createdAt: -1,
+      });
 
-    const formattedOrders = orders.map((order) => ({
-      _id: order._id,
+    const formattedOrders =
+      orders.map((order) => ({
+        _id: order._id,
 
-      id:
-        order.orderId ||
-        `#PH${order._id
-          .toString()
-          .slice(-6)
-          .toUpperCase()}`,
+        id:
+          order.orderId ||
+          `#PH${order._id
+            .toString()
+            .slice(-6)
+            .toUpperCase()}`,
 
-      customer:
-        order.customer?.name ||
-        order.user?.name ||
-        "Customer",
+        customer:
+          order.customer?.name ||
+          order.user?.name ||
+          "Customer",
 
-      email:
-        order.user?.email ||
-        "customer@pizzahub.com",
+        email:
+          order.user?.email ||
+          "customer@pizzahub.com",
 
-      pizza:
-        order.items
-          ?.map(
-            (item) =>
-              `${item.name} x${item.quantity}`
-          )
-          .join(", ") || "Pizza",
+        pizza:
+          order.items
+            ?.map(
+              (item) =>
+                `${item.name} x${item.quantity}`
+            )
+            .join(", ") ||
+          "Pizza",
 
-      amount: order.total,
+        amount: order.total,
 
-      paymentStatus: order.paymentStatus,
+        paymentStatus:
+          order.paymentStatus,
 
-      paymentMethod: order.paymentMethod,
+        paymentMethod:
+          order.paymentMethod,
 
-      status:
-        STATUS_MAP[order.orderStatus] ||
-        order.orderStatus,
+        status:
+          STATUS_MAP[
+            order.orderStatus
+          ] ||
+          order.orderStatus,
 
-      rawStatus: order.orderStatus,
+        rawStatus:
+          order.orderStatus,
 
-      time: order.createdAt,
+        time:
+          order.createdAt,
 
-      shippingAddress: order.shippingAddress,
+        shippingAddress:
+          order.shippingAddress,
 
-      createdAt: order.createdAt,
-    }));
+        createdAt:
+          order.createdAt,
+      }));
 
     return res.status(200).json({
       success: true,
+
       count: formattedOrders.length,
+
       data: formattedOrders,
     });
   } catch (error) {
-    console.error("Get all orders error:", error);
+    console.error(
+      "Get all orders error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -518,9 +730,15 @@ const getAllOrders = async (req, res) => {
 
 const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id)
-      .populate("user", "name email")
-      .populate("items.product");
+    const order =
+      await Order.findById(
+        req.params.id
+      )
+        .populate(
+          "user",
+          "name email"
+        )
+        .populate("items.product");
 
     if (!order) {
       return res.status(404).json({
@@ -534,11 +752,15 @@ const getOrderById = async (req, res) => {
       data: order,
     });
   } catch (error) {
-    console.error("Get order by ID error:", error);
+    console.error(
+      "Get order by ID error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch order details.",
+      message:
+        "Failed to fetch order details.",
     });
   }
 };
@@ -548,63 +770,110 @@ const getOrderById = async (req, res) => {
 // PATCH /api/admin/orders/:id/status
 // ==========================================
 
-const updateOrderStatus = async (req, res) => {
+const updateOrderStatus = async (
+  req,
+  res
+) => {
   try {
     let { status } = req.body;
 
     if (!status) {
       return res.status(400).json({
         success: false,
-        message: "Order status is required.",
+        message:
+          "Order status is required.",
       });
     }
+
+    // ==========================================
+    // STATUS NORMALIZATION
+    // ==========================================
 
     const reverseStatusMap = {
       "order placed": "PLACED",
       "order received": "PLACED",
+
       confirmed: "CONFIRMED",
+
       "in kitchen": "PREPARING",
       preparing: "PREPARING",
-      "sent to delivery": "OUT_FOR_DELIVERY",
-      "out for delivery": "OUT_FOR_DELIVERY",
+
+      "sent to delivery":
+        "OUT_FOR_DELIVERY",
+
+      "out for delivery":
+        "OUT_FOR_DELIVERY",
+
       delivered: "DELIVERED",
+
       cancelled: "CANCELLED",
+
       placed: "PLACED",
+
       order_received: "PLACED",
+
       in_kitchen: "PREPARING",
-      sent_to_delivery: "OUT_FOR_DELIVERY",
+
+      sent_to_delivery:
+        "OUT_FOR_DELIVERY",
 
       "Order Placed": "PLACED",
+
       "Order Received": "PLACED",
+
       Confirmed: "CONFIRMED",
+
       "In Kitchen": "PREPARING",
+
       Preparing: "PREPARING",
-      "Sent to Delivery": "OUT_FOR_DELIVERY",
-      "Out for Delivery": "OUT_FOR_DELIVERY",
+
+      "Sent to Delivery":
+        "OUT_FOR_DELIVERY",
+
+      "Out for Delivery":
+        "OUT_FOR_DELIVERY",
+
       Delivered: "DELIVERED",
+
       Cancelled: "CANCELLED",
 
       PLACED: "PLACED",
+
       CONFIRMED: "CONFIRMED",
+
       PREPARING: "PREPARING",
-      OUT_FOR_DELIVERY: "OUT_FOR_DELIVERY",
+
+      OUT_FOR_DELIVERY:
+        "OUT_FOR_DELIVERY",
+
       DELIVERED: "DELIVERED",
+
       CANCELLED: "CANCELLED",
     };
 
     const normalizedStatus =
       reverseStatusMap[status] ||
-      reverseStatusMap[status.toString().trim()] ||
       reverseStatusMap[
-        status.toString().trim().toLowerCase()
+        status
+          .toString()
+          .trim()
+      ] ||
+      reverseStatusMap[
+        status
+          .toString()
+          .trim()
+          .toLowerCase()
       ];
 
     if (
       !normalizedStatus ||
-      !ALLOWED_STATUSES.includes(normalizedStatus)
+      !ALLOWED_STATUSES.includes(
+        normalizedStatus
+      )
     ) {
       return res.status(400).json({
         success: false,
+
         message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(
           ", "
         )}`,
@@ -615,7 +884,10 @@ const updateOrderStatus = async (req, res) => {
     // FIND ORDER
     // ==========================================
 
-    const order = await Order.findById(req.params.id);
+    const order =
+      await Order.findById(
+        req.params.id
+      );
 
     if (!order) {
       return res.status(404).json({
@@ -628,23 +900,33 @@ const updateOrderStatus = async (req, res) => {
     // UPDATE STATUS
     // ==========================================
 
-    order.orderStatus = normalizedStatus;
+    order.orderStatus =
+      normalizedStatus;
 
-    if (normalizedStatus === "DELIVERED") {
-      order.paymentStatus = "PAID";
+    if (
+      normalizedStatus ===
+      "DELIVERED"
+    ) {
+      order.paymentStatus =
+        "PAID";
     }
 
-    const updatedOrder = await order.save();
+    const updatedOrder =
+      await order.save();
 
     // ==========================================
     // POPULATE UPDATED ORDER
     // ==========================================
 
-    const populated = await Order.findById(
-      updatedOrder._id
-    )
-      .populate("user", "name email")
-      .populate("items.product");
+    const populated =
+      await Order.findById(
+        updatedOrder._id
+      )
+        .populate(
+          "user",
+          "name email"
+        )
+        .populate("items.product");
 
     // ==========================================
     // RESPONSE
@@ -652,15 +934,22 @@ const updateOrderStatus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+
       message: `Order status updated to "${STATUS_MAP[normalizedStatus]}".`,
+
       data: populated,
     });
   } catch (error) {
-    console.error("Update order status error:", error);
+    console.error(
+      "Update order status error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update order status.",
+
+      message:
+        "Failed to update order status.",
     });
   }
 };

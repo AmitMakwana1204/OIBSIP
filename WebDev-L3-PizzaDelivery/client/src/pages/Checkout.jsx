@@ -48,7 +48,6 @@ export default function Checkout() {
 
     setForm((prev) => ({
       ...prev,
-
       name: prev.name || user.name || "",
       phone: prev.phone || user.phone || "",
       address: prev.address || user.address || "",
@@ -63,18 +62,28 @@ export default function Checkout() {
 
   useEffect(() => {
     try {
-      const savedCart = localStorage.getItem(CART_KEY);
+      const savedCart =
+        localStorage.getItem(CART_KEY);
 
-      const parsedCart = savedCart ? JSON.parse(savedCart) : [];
+      const parsedCart = savedCart
+        ? JSON.parse(savedCart)
+        : [];
 
-      if (!Array.isArray(parsedCart) || parsedCart.length === 0) {
+      if (
+        !Array.isArray(parsedCart) ||
+        parsedCart.length === 0
+      ) {
         navigate("/cart");
         return;
       }
 
       setCart(parsedCart);
     } catch (error) {
-      console.error("Checkout cart loading error:", error);
+      console.error(
+        "Checkout cart loading error:",
+        error
+      );
+
       navigate("/cart");
     } finally {
       setCartLoading(false);
@@ -87,10 +96,16 @@ export default function Checkout() {
 
   const subtotal = useMemo(() => {
     return cart.reduce((total, item) => {
-      const price = Number(item.price) || 0;
-      const quantity = Number(item.quantity) || 1;
+      const price =
+        Number(item.price) || 0;
 
-      return total + price * quantity;
+      const quantity =
+        Number(item.quantity) || 1;
+
+      return (
+        total +
+        price * quantity
+      );
     }, 0);
   }, [cart]);
 
@@ -99,20 +114,29 @@ export default function Checkout() {
   // =========================================================
 
   const deliveryFee =
-    subtotal === 0 ? 0 : subtotal >= 499 ? 0 : 40;
+    subtotal === 0
+      ? 0
+      : subtotal >= 499
+      ? 0
+      : 40;
 
   // =========================================================
   // DISCOUNT
   // =========================================================
 
   const discount =
-    subtotal >= 999 ? Math.round(subtotal * 0.2) : 0;
+    subtotal >= 999
+      ? Math.round(subtotal * 0.2)
+      : 0;
 
   // =========================================================
   // TOTAL
   // =========================================================
 
-  const total = subtotal + deliveryFee - discount;
+  const total =
+    subtotal +
+    deliveryFee -
+    discount;
 
   // =========================================================
   // TOTAL ITEMS
@@ -120,7 +144,9 @@ export default function Checkout() {
 
   const totalItems = useMemo(() => {
     return cart.reduce(
-      (sum, item) => sum + (Number(item.quantity) || 1),
+      (sum, item) =>
+        sum +
+        (Number(item.quantity) || 1),
       0
     );
   }, [cart]);
@@ -130,7 +156,10 @@ export default function Checkout() {
   // =========================================================
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const {
+      name,
+      value,
+    } = e.target;
 
     setForm((prev) => ({
       ...prev,
@@ -143,53 +172,85 @@ export default function Checkout() {
   // =========================================================
 
   const validateForm = () => {
-    const name = form.name.trim();
-    const phone = form.phone.trim();
-    const address = form.address.trim();
-    const city = form.city.trim();
-    const pincode = form.pincode.trim();
+    const name =
+      form.name.trim();
+
+    const phone =
+      form.phone.trim();
+
+    const address =
+      form.address.trim();
+
+    const city =
+      form.city.trim();
+
+    const pincode =
+      form.pincode.trim();
 
     if (!name) {
-      alert("Please enter your full name.");
+      alert(
+        "Please enter your full name."
+      );
       return false;
     }
 
     if (!phone) {
-      alert("Please enter your phone number.");
+      alert(
+        "Please enter your phone number."
+      );
       return false;
     }
 
     if (!/^[0-9]{10}$/.test(phone)) {
-      alert("Please enter a valid 10 digit phone number.");
+      alert(
+        "Please enter a valid 10 digit phone number."
+      );
       return false;
     }
 
     if (!address) {
-      alert("Please enter your delivery address.");
+      alert(
+        "Please enter your delivery address."
+      );
       return false;
     }
 
     if (!city) {
-      alert("Please enter your city.");
+      alert(
+        "Please enter your city."
+      );
       return false;
     }
 
     if (!pincode) {
-      alert("Please enter your pincode.");
+      alert(
+        "Please enter your pincode."
+      );
       return false;
     }
 
     if (!/^[0-9]{6}$/.test(pincode)) {
-      alert("Please enter a valid 6 digit pincode.");
+      alert(
+        "Please enter a valid 6 digit pincode."
+      );
       return false;
     }
 
-    if (!["COD", "ONLINE"].includes(form.paymentMethod)) {
-      alert("Please select a valid payment method.");
+    if (
+      !["COD", "ONLINE"].includes(
+        form.paymentMethod
+      )
+    ) {
+      alert(
+        "Please select a valid payment method."
+      );
       return false;
     }
 
-    if (!Array.isArray(cart) || cart.length === 0) {
+    if (
+      !Array.isArray(cart) ||
+      cart.length === 0
+    ) {
       alert("Your cart is empty.");
       navigate("/cart");
       return false;
@@ -207,7 +268,8 @@ export default function Checkout() {
 
     if (loading) return;
 
-    const isValid = validateForm();
+    const isValid =
+      validateForm();
 
     if (!isValid) return;
 
@@ -218,37 +280,49 @@ export default function Checkout() {
       // PREPARE ORDER ITEMS
       // =====================================================
 
-      const items = cart.map((item) => {
-        const productId =
-          item._id ||
-          item.id ||
-          item.product?._id ||
-          item.product?.id;
+      const items = cart.map(
+        (item) => {
+          const productId =
+            item._id ||
+            item.id ||
+            item.product?._id ||
+            item.product?.id;
 
-        return {
-          product: productId,
-          name: item.name || "Pizza",
-          price: Number(item.price) || 0,
-          quantity: Number(item.quantity) || 1,
-          image: item.image || "",
-        };
-      });
+          return {
+            product: productId,
+            name:
+              item.name || "Pizza",
+            price:
+              Number(item.price) || 0,
+            quantity:
+              Number(item.quantity) || 1,
+            image:
+              item.image || "",
+          };
+        }
+      );
 
       // =====================================================
       // CHECK PRODUCT IDS
       // =====================================================
 
-      const invalidItem = items.find(
-        (item) => !item.product
-      );
+      const invalidItem =
+        items.find(
+          (item) =>
+            !item.product
+        );
 
       if (invalidItem) {
-        console.error("Invalid cart item:", invalidItem);
+        console.error(
+          "Invalid cart item:",
+          invalidItem
+        );
 
         alert(
           "Product information is missing. Please remove this item from cart and add it again."
         );
 
+        setLoading(false);
         return;
       }
 
@@ -264,8 +338,10 @@ export default function Checkout() {
         // ===================================================
 
         customer: {
-          name: form.name.trim(),
-          phone: form.phone.trim(),
+          name:
+            form.name.trim(),
+          phone:
+            form.phone.trim(),
         },
 
         // ===================================================
@@ -273,69 +349,194 @@ export default function Checkout() {
         // ===================================================
 
         shippingAddress: {
-          address: form.address.trim(),
-          city: form.city.trim(),
-          pincode: form.pincode.trim(),
+          address:
+            form.address.trim(),
+          city:
+            form.city.trim(),
+          pincode:
+            form.pincode.trim(),
         },
 
         // ===================================================
         // PAYMENT
         // ===================================================
 
-        paymentMethod: form.paymentMethod,
+        paymentMethod:
+          form.paymentMethod,
 
         // ===================================================
         // PRICING
         // ===================================================
 
-        subtotal: Number(subtotal),
-        deliveryFee: Number(deliveryFee),
-        discount: Number(discount),
-        total: Number(total),
+        subtotal:
+          Number(subtotal),
+
+        deliveryFee:
+          Number(deliveryFee),
+
+        discount:
+          Number(discount),
+
+        total:
+          Number(total),
       };
 
       // =====================================================
       // DEBUG
       // =====================================================
 
-      console.log("=================================");
-      console.log("ORDER PAYLOAD:");
-      console.log(JSON.stringify(orderData, null, 2));
-      console.log("=================================");
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "ORDER PAYLOAD:"
+      );
+
+      console.log(
+        JSON.stringify(
+          orderData,
+          null,
+          2
+        )
+      );
+
+      console.log(
+        "================================="
+      );
 
       // =====================================================
       // CREATE ORDER
       // =====================================================
 
-      const response = await createUserOrder(orderData);
+      const response =
+        await createUserOrder(
+          orderData
+        );
 
-      console.log("ORDER CREATED:", response);
-
-      // =====================================================
-      // CLEAR CART
-      // =====================================================
-
-      localStorage.removeItem(CART_KEY);
-
-      window.dispatchEvent(new Event("cartUpdated"));
+      console.log(
+        "ORDER CREATED:",
+        response
+      );
 
       // =====================================================
-      // ORDER SUCCESS
+      // GET CREATED ORDER
       // =====================================================
 
-      navigate("/order-success", {
-        replace: true,
-        state: {
-          order:
-            response?.order ||
-            response?.data?.order ||
-            response?.data ||
-            response,
-        },
-      });
+      const createdOrder =
+        response?.order ||
+        response?.data?.order ||
+        response?.data ||
+        response;
+
+      const createdOrderId =
+        createdOrder?._id ||
+        createdOrder?.id;
+
+      if (!createdOrderId) {
+        throw new Error(
+          "Order was created but Order ID was not received."
+        );
+      }
+
+      // =====================================================
+      // ONLINE PAYMENT
+      // =====================================================
+
+      if (
+        form.paymentMethod ===
+        "ONLINE"
+      ) {
+        console.log(
+          "💳 Redirecting to Razorpay payment..."
+        );
+
+        /*
+         * IMPORTANT:
+         * Online paymentમાં cart અહીં clear
+         * નહીં થાય.
+         *
+         * Payment successful થયા પછી
+         * Payment.jsx cart clear કરશે.
+         */
+
+        setLoading(false);
+
+        navigate(
+          "/payment",
+          {
+            replace: true,
+
+            state: {
+              orderId:
+                createdOrderId,
+
+              amount:
+                Number(total),
+
+              total:
+                Number(total),
+
+              customer: {
+                name:
+                  form.name.trim(),
+
+                phone:
+                  form.phone.trim(),
+              },
+
+              order:
+                createdOrder,
+            },
+          }
+        );
+
+        return;
+      }
+
+      // =====================================================
+      // COD PAYMENT
+      // =====================================================
+
+      /*
+       * COD માટે paymentની જરૂર નથી.
+       * એટલે અહીં cart clear કરીશું.
+       */
+
+      localStorage.removeItem(
+        CART_KEY
+      );
+
+      window.dispatchEvent(
+        new Event(
+          "cartUpdated"
+        )
+      );
+
+      // =====================================================
+      // COD ORDER SUCCESS
+      // =====================================================
+
+      navigate(
+        "/order-success",
+        {
+          replace: true,
+
+          state: {
+            order:
+              createdOrder,
+          },
+        }
+      );
     } catch (error) {
-      console.error("=================================");
-      console.error("PLACE ORDER ERROR:", error);
+      console.error(
+        "================================="
+      );
+
+      console.error(
+        "PLACE ORDER ERROR:",
+        error
+      );
 
       console.error(
         "STATUS:",
@@ -352,10 +553,13 @@ export default function Checkout() {
         error?.config?.data
       );
 
-      console.error("=================================");
+      console.error(
+        "================================="
+      );
 
       const backendMessage =
-        error?.response?.data?.message;
+        error?.response?.data
+          ?.message;
 
       alert(
         backendMessage ||
@@ -412,10 +616,14 @@ export default function Checkout() {
 
             <button
               type="button"
-              onClick={() => navigate("/cart")}
+              onClick={() =>
+                navigate("/cart")
+              }
               className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-red-600 transition"
             >
-              <ArrowLeft size={17} />
+              <ArrowLeft
+                size={17}
+              />
 
               Back to Cart
             </button>
@@ -444,7 +652,11 @@ export default function Checkout() {
 
         <section className="max-w-7xl mx-auto px-6 py-10">
 
-          <form onSubmit={handlePlaceOrder}>
+          <form
+            onSubmit={
+              handlePlaceOrder
+            }
+          >
 
             <div className="grid lg:grid-cols-[1fr_380px] gap-7">
 
@@ -465,7 +677,9 @@ export default function Checkout() {
                     <div className="flex items-center gap-3">
 
                       <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 flex items-center justify-center">
-                        <MapPin size={21} />
+                        <MapPin
+                          size={21}
+                        />
                       </div>
 
                       <div>
@@ -486,9 +700,7 @@ export default function Checkout() {
 
                   <div className="p-6 grid md:grid-cols-2 gap-5">
 
-                    {/* =========================================
-                        NAME
-                    ========================================= */}
+                    {/* NAME */}
 
                     <div>
 
@@ -506,8 +718,12 @@ export default function Checkout() {
                         <input
                           type="text"
                           name="name"
-                          value={form.name}
-                          onChange={handleChange}
+                          value={
+                            form.name
+                          }
+                          onChange={
+                            handleChange
+                          }
                           placeholder="Enter your name"
                           autoComplete="name"
                           className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3.5 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
@@ -517,9 +733,7 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* =========================================
-                        PHONE
-                    ========================================= */}
+                    {/* PHONE */}
 
                     <div>
 
@@ -537,8 +751,12 @@ export default function Checkout() {
                         <input
                           type="tel"
                           name="phone"
-                          value={form.phone}
-                          onChange={handleChange}
+                          value={
+                            form.phone
+                          }
+                          onChange={
+                            handleChange
+                          }
                           maxLength={10}
                           inputMode="numeric"
                           autoComplete="tel"
@@ -550,9 +768,7 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* =========================================
-                        ADDRESS
-                    ========================================= */}
+                    {/* ADDRESS */}
 
                     <div className="md:col-span-2">
 
@@ -562,8 +778,12 @@ export default function Checkout() {
 
                       <textarea
                         name="address"
-                        value={form.address}
-                        onChange={handleChange}
+                        value={
+                          form.address
+                        }
+                        onChange={
+                          handleChange
+                        }
                         rows={3}
                         autoComplete="street-address"
                         placeholder="House / Flat / Street / Area"
@@ -572,9 +792,7 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* =========================================
-                        CITY
-                    ========================================= */}
+                    {/* CITY */}
 
                     <div>
 
@@ -585,8 +803,12 @@ export default function Checkout() {
                       <input
                         type="text"
                         name="city"
-                        value={form.city}
-                        onChange={handleChange}
+                        value={
+                          form.city
+                        }
+                        onChange={
+                          handleChange
+                        }
                         autoComplete="address-level2"
                         placeholder="Enter city"
                         className="w-full mt-2 border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
@@ -594,9 +816,7 @@ export default function Checkout() {
 
                     </div>
 
-                    {/* =========================================
-                        PINCODE
-                    ========================================= */}
+                    {/* PINCODE */}
 
                     <div>
 
@@ -607,8 +827,12 @@ export default function Checkout() {
                       <input
                         type="text"
                         name="pincode"
-                        value={form.pincode}
-                        onChange={handleChange}
+                        value={
+                          form.pincode
+                        }
+                        onChange={
+                          handleChange
+                        }
                         maxLength={6}
                         inputMode="numeric"
                         autoComplete="postal-code"
@@ -633,7 +857,9 @@ export default function Checkout() {
                     <div className="flex items-center gap-3">
 
                       <div className="w-11 h-11 rounded-xl bg-green-50 text-green-600 flex items-center justify-center">
-                        <CreditCard size={21} />
+                        <CreditCard
+                          size={21}
+                        />
                       </div>
 
                       <div>
@@ -654,13 +880,12 @@ export default function Checkout() {
 
                   <div className="p-6 space-y-3">
 
-                    {/* =========================================
-                        COD
-                    ========================================= */}
+                    {/* COD */}
 
                     <label
                       className={`flex items-center gap-4 border rounded-2xl p-4 cursor-pointer transition ${
-                        form.paymentMethod === "COD"
+                        form.paymentMethod ===
+                        "COD"
                           ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
@@ -671,9 +896,12 @@ export default function Checkout() {
                         name="paymentMethod"
                         value="COD"
                         checked={
-                          form.paymentMethod === "COD"
+                          form.paymentMethod ===
+                          "COD"
                         }
-                        onChange={handleChange}
+                        onChange={
+                          handleChange
+                        }
                         className="w-5 h-5 accent-red-600"
                       />
 
@@ -691,13 +919,12 @@ export default function Checkout() {
 
                     </label>
 
-                    {/* =========================================
-                        ONLINE
-                    ========================================= */}
+                    {/* ONLINE */}
 
                     <label
                       className={`flex items-center gap-4 border rounded-2xl p-4 cursor-pointer transition ${
-                        form.paymentMethod === "ONLINE"
+                        form.paymentMethod ===
+                        "ONLINE"
                           ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
@@ -708,9 +935,12 @@ export default function Checkout() {
                         name="paymentMethod"
                         value="ONLINE"
                         checked={
-                          form.paymentMethod === "ONLINE"
+                          form.paymentMethod ===
+                          "ONLINE"
                         }
-                        onChange={handleChange}
+                        onChange={
+                          handleChange
+                        }
                         className="w-5 h-5 accent-red-600"
                       />
 
@@ -721,7 +951,7 @@ export default function Checkout() {
                         </p>
 
                         <p className="text-sm text-gray-500">
-                          Pay securely online.
+                          Pay securely online with Razorpay.
                         </p>
 
                       </div>
@@ -754,7 +984,8 @@ export default function Checkout() {
 
                       <span className="text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-full">
                         {totalItems}{" "}
-                        {totalItems === 1
+                        {totalItems ===
+                        1
                           ? "item"
                           : "items"}
                       </span>
@@ -767,59 +998,82 @@ export default function Checkout() {
 
                   <div className="p-6 space-y-4 max-h-[350px] overflow-y-auto">
 
-                    {cart.map((item, index) => {
+                    {cart.map(
+                      (
+                        item,
+                        index
+                      ) => {
 
-                      const quantity =
-                        Number(item.quantity) || 1;
+                        const quantity =
+                          Number(
+                            item.quantity
+                          ) || 1;
 
-                      const price =
-                        Number(item.price) || 0;
+                        const price =
+                          Number(
+                            item.price
+                          ) || 0;
 
-                      return (
-                        <div
-                          key={
-                            item._id ||
-                            item.id ||
-                            index
-                          }
-                          className="flex gap-3"
-                        >
+                        return (
+                          <div
+                            key={
+                              item._id ||
+                              item.id ||
+                              index
+                            }
+                            className="flex gap-3"
+                          >
 
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-16 h-16 rounded-xl object-cover bg-gray-100"
-                            onError={(e) => {
-                              e.currentTarget.src =
-                                "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400";
-                            }}
-                          />
+                            <img
+                              src={
+                                item.image
+                              }
+                              alt={
+                                item.name
+                              }
+                              className="w-16 h-16 rounded-xl object-cover bg-gray-100"
+                              onError={(
+                                e
+                              ) => {
+                                e.currentTarget.src =
+                                  "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=400";
+                              }}
+                            />
 
-                          <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0">
 
-                            <p className="font-bold truncate">
-                              {item.name || "Pizza"}
-                            </p>
+                              <p className="font-bold truncate">
+                                {item.name ||
+                                  "Pizza"}
+                              </p>
 
-                            <p className="text-xs text-gray-500 mt-1">
-                              Qty: {quantity}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Qty:{" "}
+                                {
+                                  quantity
+                                }
+                              </p>
+
+                            </div>
+
+                            <p className="font-black">
+                              ₹
+                              {price *
+                                quantity}
                             </p>
 
                           </div>
-
-                          <p className="font-black">
-                            ₹{price * quantity}
-                          </p>
-
-                        </div>
-                      );
-                    })}
+                        );
+                      }
+                    )}
 
                   </div>
 
                   {/* PRICE */}
 
                   <div className="p-6 border-t border-gray-100 space-y-4">
+
+                    {/* SUBTOTAL */}
 
                     <div className="flex justify-between text-sm">
 
@@ -833,6 +1087,8 @@ export default function Checkout() {
 
                     </div>
 
+                    {/* DELIVERY */}
+
                     <div className="flex justify-between text-sm">
 
                       <span className="text-gray-500">
@@ -841,17 +1097,21 @@ export default function Checkout() {
 
                       <span
                         className={
-                          deliveryFee === 0
+                          deliveryFee ===
+                          0
                             ? "font-bold text-green-600"
                             : "font-bold"
                         }
                       >
-                        {deliveryFee === 0
+                        {deliveryFee ===
+                        0
                           ? "FREE"
                           : `₹${deliveryFee}`}
                       </span>
 
                     </div>
+
+                    {/* DISCOUNT */}
 
                     {discount > 0 && (
                       <div className="flex justify-between text-sm">
@@ -866,6 +1126,8 @@ export default function Checkout() {
 
                       </div>
                     )}
+
+                    {/* TOTAL */}
 
                     <div className="border-t border-dashed pt-4">
 
@@ -889,7 +1151,8 @@ export default function Checkout() {
                       type="submit"
                       disabled={
                         loading ||
-                        cart.length === 0
+                        cart.length ===
+                          0
                       }
                       className="w-full bg-red-600 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-red-700 transition shadow-lg shadow-red-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -901,13 +1164,21 @@ export default function Checkout() {
                             className="animate-spin"
                           />
 
-                          Placing Order...
+                          {form.paymentMethod ===
+                          "ONLINE"
+                            ? "Creating Payment..."
+                            : "Placing Order..."}
                         </>
                       ) : (
                         <>
-                          <CheckCircle2 size={19} />
+                          <CheckCircle2
+                            size={19}
+                          />
 
-                          Place Order
+                          {form.paymentMethod ===
+                          "ONLINE"
+                            ? "Proceed to Payment"
+                            : "Place Order"}
                         </>
                       )}
 
@@ -923,9 +1194,10 @@ export default function Checkout() {
                       />
 
                       <p className="text-xs text-gray-500 leading-relaxed">
-                        Your order information is
-                        securely processed and
-                        protected.
+                        Your order information is securely processed and protected.
+                        {form.paymentMethod ===
+                          "ONLINE" &&
+                          " Online payments are securely processed through Razorpay."}
                       </p>
 
                     </div>
@@ -936,13 +1208,17 @@ export default function Checkout() {
 
                 {/* FREE DELIVERY */}
 
-                {subtotal > 0 &&
-                  subtotal < 499 && (
+                {subtotal >
+                  0 &&
+                  subtotal <
+                    499 && (
                     <div className="mt-4 bg-orange-50 border border-orange-100 rounded-2xl p-4">
 
                       <p className="text-sm font-bold text-orange-700">
-                        Add ₹{499 - subtotal} more
-                        for FREE delivery 🚚
+                        Add ₹
+                        {499 -
+                          subtotal}{" "}
+                        more for FREE delivery 🚚
                       </p>
 
                     </div>

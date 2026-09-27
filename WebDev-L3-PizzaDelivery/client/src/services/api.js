@@ -47,7 +47,8 @@ api.interceptors.request.use(
     // ---------------------------------------------
 
     const method =
-      config.method?.toLowerCase() || "get";
+      config.method?.toLowerCase() ||
+      "get";
 
     // ---------------------------------------------
     // Detect ingredient request
@@ -196,7 +197,7 @@ api.interceptors.response.use(
     return Promise.reject(
       new Error(
         error.message ||
-        "Something went wrong. Please try again."
+          "Something went wrong. Please try again."
       )
     );
   }
@@ -257,14 +258,23 @@ export const resetPasswordRequest = (
 
 // Get current logged-in user
 export const getCurrentUser = () => {
-  return api.get("/auth/me");
+  return api.get(
+    "/auth/me"
+  );
 };
 
 // Update user profile
-export const updateUserProfile = (data) => {
-  if (!data || typeof data !== "object") {
+export const updateUserProfile = (
+  data
+) => {
+  if (
+    !data ||
+    typeof data !== "object"
+  ) {
     return Promise.reject(
-      new Error("Profile data is required")
+      new Error(
+        "Profile data is required"
+      )
     );
   }
 
@@ -278,10 +288,17 @@ export const updateUserProfile = (data) => {
 // CHANGE USER PASSWORD
 // =========================================================
 
-export const changeUserPassword = (data) => {
-  if (!data || typeof data !== "object") {
+export const changeUserPassword = (
+  data
+) => {
+  if (
+    !data ||
+    typeof data !== "object"
+  ) {
     return Promise.reject(
-      new Error("Password data is required")
+      new Error(
+        "Password data is required"
+      )
     );
   }
 
@@ -309,8 +326,11 @@ export const adminLoginApi = (
 // =========================================================
 
 // Dashboard statistics
-export const getAdminDashboardStats = () =>
-  api.get("/admin/dashboard");
+export const getAdminDashboardStats =
+  () =>
+    api.get(
+      "/admin/dashboard"
+    );
 
 // =========================================================
 // ADMIN INVENTORY APIs
@@ -318,7 +338,9 @@ export const getAdminDashboardStats = () =>
 
 // Get all inventory
 export const getAdminInventory = () =>
-  api.get("/inventory");
+  api.get(
+    "/inventory"
+  );
 
 // Get single inventory item
 export const getAdminInventoryItem = (
@@ -429,7 +451,9 @@ export const deleteAdminInventory = (
 
 // Get all available ingredients
 export const getIngredients = () =>
-  api.get("/ingredients");
+  api.get(
+    "/ingredients"
+  );
 
 // Get single ingredient
 export const getIngredientById = (
@@ -532,7 +556,9 @@ export const deleteIngredient = (
 
 // Get all orders
 export const getAdminOrders = () =>
-  api.get("/admin/orders");
+  api.get(
+    "/admin/orders"
+  );
 
 // Get order details
 export const getAdminOrderDetails = (
@@ -649,6 +675,75 @@ export const cancelUserOrder = (
 
   return api.put(
     `/orders/my-orders/${encodedOrderId}/cancel`
+  );
+};
+
+// =========================================================
+// RAZORPAY PAYMENT APIs
+// =========================================================
+
+// Create Razorpay payment order
+export const createPaymentOrder = (
+  data
+) => {
+  if (
+    !data ||
+    typeof data !== "object"
+  ) {
+    return Promise.reject(
+      new Error(
+        "Payment data is required"
+      )
+    );
+  }
+
+  if (
+    !data.amount ||
+    Number(data.amount) <= 0
+  ) {
+    return Promise.reject(
+      new Error(
+        "Valid payment amount is required"
+      )
+    );
+  }
+
+  return api.post(
+    "/payment/create-order",
+    data
+  );
+};
+
+// Verify Razorpay payment
+export const verifyPayment = (
+  data
+) => {
+  if (
+    !data ||
+    typeof data !== "object"
+  ) {
+    return Promise.reject(
+      new Error(
+        "Payment verification data is required"
+      )
+    );
+  }
+
+  if (
+    !data.razorpay_order_id ||
+    !data.razorpay_payment_id ||
+    !data.razorpay_signature
+  ) {
+    return Promise.reject(
+      new Error(
+        "Incomplete payment verification data"
+      )
+    );
+  }
+
+  return api.post(
+    "/payment/verify",
+    data
   );
 };
 

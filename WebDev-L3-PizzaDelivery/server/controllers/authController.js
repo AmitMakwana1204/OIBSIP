@@ -9,9 +9,9 @@ const {
   sendPasswordResetEmail,
 } = require("../utils/sendEmail");
 
-// =========================
+// =========================================================
 // USER RESPONSE HELPER
-// =========================
+// =========================================================
 
 const getUserResponse = (user) => {
   return {
@@ -27,9 +27,10 @@ const getUserResponse = (user) => {
   };
 };
 
-// =========================
+// =========================================================
 // REGISTER USER
-// =========================
+// POST /api/auth/register
+// =========================================================
 
 const register = async (req, res) => {
   try {
@@ -40,33 +41,48 @@ const register = async (req, res) => {
       confirmPassword,
     } = req.body;
 
-    // =========================
+    // -----------------------------------------------------
     // VALIDATION
-    // =========================
+    // -----------------------------------------------------
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (
+      !name ||
+      !email ||
+      !password ||
+      !confirmPassword
+    ) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
     }
 
-    // =========================
+    const normalizedName = name.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedName) {
+      return res.status(400).json({
+        success: false,
+        message: "Name is required",
+      });
+    }
+
+    // -----------------------------------------------------
     // EMAIL VALIDATION
-    // =========================
+    // -----------------------------------------------------
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         message: "Please provide a valid email address",
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // PASSWORD VALIDATION
-    // =========================
+    // -----------------------------------------------------
 
     if (password.length < 6) {
       return res.status(400).json({
@@ -82,30 +98,34 @@ const register = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // CHECK EXISTING USER
-    // =========================
+    // -----------------------------------------------------
 
     const existingUser = await User.findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
     });
 
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: "An account with this email already exists",
+        message:
+          "An account with this email already exists",
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // HASH PASSWORD
-    // =========================
+    // -----------------------------------------------------
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      12
+    );
 
-    // =========================
+    // -----------------------------------------------------
     // VERIFICATION TOKEN
-    // =========================
+    // -----------------------------------------------------
 
     const verificationToken = crypto
       .randomBytes(32)
@@ -115,13 +135,13 @@ const register = async (req, res) => {
       Date.now() + 15 * 60 * 1000
     );
 
-    // =========================
+    // -----------------------------------------------------
     // CREATE USER
-    // =========================
+    // -----------------------------------------------------
 
     const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase(),
+      name: normalizedName,
+      email: normalizedEmail,
       password: hashedPassword,
 
       phone: "",
@@ -136,9 +156,9 @@ const register = async (req, res) => {
       verificationTokenExpires,
     });
 
-    // =========================
+    // -----------------------------------------------------
     // SEND VERIFICATION EMAIL
-    // =========================
+    // -----------------------------------------------------
 
     try {
       await sendVerificationEmail(
@@ -146,22 +166,23 @@ const register = async (req, res) => {
         user.name,
         verificationToken
       );
-    } catch (emailErr) {
+    } catch (emailError) {
       console.warn(
-        "⚠️ Warning: Email sending failed:",
-        emailErr.message
+        "⚠️ Verification email failed:",
+        emailError.message
       );
 
       console.log(
         `🔗 Verification Link for ${user.email}: ${
-          process.env.CLIENT_URL || "http://localhost:5173"
+          process.env.CLIENT_URL ||
+          "http://localhost:5173"
         }/verify-email?token=${verificationToken}`
       );
     }
 
-    // =========================
+    // -----------------------------------------------------
     // RESPONSE
-    // =========================
+    // -----------------------------------------------------
 
     return res.status(201).json({
       success: true,
@@ -179,9 +200,10 @@ const register = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // VERIFY EMAIL
-// =========================
+// GET /api/auth/verify-email?token=...
+// =========================================================
 
 const verifyEmail = async (req, res) => {
   try {
@@ -194,9 +216,9 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // FIND USER
-    // =========================
+    // -----------------------------------------------------
 
     const user = await User.findOne({
       verificationToken: token,
@@ -213,9 +235,9 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // VERIFY USER
-    // =========================
+    // -----------------------------------------------------
 
     user.isVerified = true;
     user.verificationToken = null;
@@ -239,9 +261,10 @@ const verifyEmail = async (req, res) => {
   }
 };
 
-// =========================
-// LOGIN
-// =========================
+// =========================================================
+// LOGIN USER
+// POST /api/auth/login
+// =========================================================
 
 const login = async (req, res) => {
   try {
@@ -250,9 +273,9 @@ const login = async (req, res) => {
       password,
     } = req.body;
 
-    // =========================
+    // -----------------------------------------------------
     // VALIDATION
-    // =========================
+    // -----------------------------------------------------
 
     if (!email || !password) {
       return res.status(400).json({
@@ -262,12 +285,16 @@ const login = async (req, res) => {
       });
     }
 
-    // =========================
+    const normalizedEmail = email
+      .trim()
+      .toLowerCase();
+
+    // -----------------------------------------------------
     // FIND USER
-    // =========================
+    // -----------------------------------------------------
 
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
     });
 
     if (!user) {
@@ -278,9 +305,17 @@ const login = async (req, res) => {
       });
     }
 
-    // =========================
-    // VERIFY PASSWORD
-    // =========================
+    // -----------------------------------------------------
+    // PASSWORD CHECK
+    // -----------------------------------------------------
+
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Invalid email or password",
+      });
+    }
 
     const isPasswordValid =
       await bcrypt.compare(
@@ -296,9 +331,9 @@ const login = async (req, res) => {
       });
     }
 
-    // =========================
-    // EMAIL VERIFICATION
-    // =========================
+    // -----------------------------------------------------
+    // EMAIL VERIFICATION CHECK
+    // -----------------------------------------------------
 
     if (!user.isVerified) {
       return res.status(403).json({
@@ -308,9 +343,25 @@ const login = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
+    // JWT SECRET CHECK
+    // -----------------------------------------------------
+
+    if (!process.env.JWT_SECRET) {
+      console.error(
+        "JWT_SECRET is missing from .env"
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Server configuration error.",
+      });
+    }
+
+    // -----------------------------------------------------
     // GENERATE JWT
-    // =========================
+    // -----------------------------------------------------
 
     const token = jwt.sign(
       {
@@ -323,9 +374,9 @@ const login = async (req, res) => {
       }
     );
 
-    // =========================
+    // -----------------------------------------------------
     // RESPONSE
-    // =========================
+    // -----------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -344,9 +395,10 @@ const login = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // GET CURRENT USER
-// =========================
+// GET /api/auth/me
+// =========================================================
 
 const getMe = async (req, res) => {
   try {
@@ -378,9 +430,10 @@ const getMe = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // UPDATE PROFILE
-// =========================
+// PUT /api/auth/profile
+// =========================================================
 
 const updateProfile = async (req, res) => {
   try {
@@ -404,9 +457,9 @@ const updateProfile = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // UPDATE FIELDS
-    // =========================
+    // -----------------------------------------------------
 
     if (name !== undefined) {
       user.name = name.trim();
@@ -453,9 +506,10 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // CHANGE PASSWORD
-// =========================
+// PUT /api/auth/change-password
+// =========================================================
 
 const changePassword = async (req, res) => {
   try {
@@ -465,9 +519,9 @@ const changePassword = async (req, res) => {
       confirmPassword,
     } = req.body;
 
-    // =========================
+    // -----------------------------------------------------
     // VALIDATION
-    // =========================
+    // -----------------------------------------------------
 
     if (
       !currentPassword ||
@@ -481,10 +535,6 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // NEW PASSWORD LENGTH
-    // =========================
-
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
@@ -493,11 +543,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // CONFIRM PASSWORD
-    // =========================
-
-    if (newPassword !== confirmPassword) {
+    if (
+      newPassword !== confirmPassword
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -505,9 +553,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // FIND USER
-    // =========================
+    // -----------------------------------------------------
 
     const user = await User.findById(
       req.user.id
@@ -520,9 +568,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // CHECK CURRENT PASSWORD
-    // =========================
+    // -----------------------------------------------------
+    // CURRENT PASSWORD
+    // -----------------------------------------------------
 
     const isCurrentPasswordValid =
       await bcrypt.compare(
@@ -538,9 +586,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // CHECK SAME PASSWORD
-    // =========================
+    // -----------------------------------------------------
+    // SAME PASSWORD CHECK
+    // -----------------------------------------------------
 
     const isSamePassword =
       await bcrypt.compare(
@@ -556,9 +604,9 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // HASH NEW PASSWORD
-    // =========================
+    // -----------------------------------------------------
 
     const hashedPassword =
       await bcrypt.hash(
@@ -568,15 +616,11 @@ const changePassword = async (req, res) => {
 
     user.password = hashedPassword;
 
-    // Clear any old reset-password token
+    // Clear reset password data
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
 
     await user.save();
-
-    // =========================
-    // RESPONSE
-    // =========================
 
     return res.status(200).json({
       success: true,
@@ -597,9 +641,10 @@ const changePassword = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // FORGOT PASSWORD
-// =========================
+// POST /api/auth/forgot-password
+// =========================================================
 
 const forgotPassword = async (req, res) => {
   try {
@@ -612,11 +657,15 @@ const forgotPassword = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email
+      .trim()
+      .toLowerCase();
+
     const genericMessage =
       "If an account exists with this email, a password reset link has been sent.";
 
     const user = await User.findOne({
-      email: email.toLowerCase(),
+      email: normalizedEmail,
     });
 
     if (!user) {
@@ -626,9 +675,9 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // RESET TOKEN
-    // =========================
+    // -----------------------------------------------------
+    // CREATE RESET TOKEN
+    // -----------------------------------------------------
 
     const resetToken = crypto
       .randomBytes(32)
@@ -644,9 +693,9 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    // =========================
-    // SEND EMAIL
-    // =========================
+    // -----------------------------------------------------
+    // SEND RESET EMAIL
+    // -----------------------------------------------------
 
     try {
       await sendPasswordResetEmail(
@@ -654,15 +703,18 @@ const forgotPassword = async (req, res) => {
         user.name,
         resetToken
       );
-    } catch (emailErr) {
+    } catch (emailError) {
       console.warn(
-        "⚠️ Warning: Password reset email sending failed:",
-        emailErr.message
+        "⚠️ Password reset email failed:",
+        emailError.message
       );
 
       console.log(
-        `🔗 Password Reset Link for ${user.email}: ${
-          process.env.CLIENT_URL || "http://localhost:5173"
+        `🔗 Password Reset Link for ${
+          user.email
+        }: ${
+          process.env.CLIENT_URL ||
+          "http://localhost:5173"
         }/reset-password/${resetToken}`
       );
     }
@@ -685,9 +737,10 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // RESET PASSWORD
-// =========================
+// POST /api/auth/reset-password/:token
+// =========================================================
 
 const resetPassword = async (req, res) => {
   try {
@@ -698,9 +751,9 @@ const resetPassword = async (req, res) => {
       confirmPassword,
     } = req.body;
 
-    // =========================
-    // TOKEN VALIDATION
-    // =========================
+    // -----------------------------------------------------
+    // TOKEN
+    // -----------------------------------------------------
 
     if (!token) {
       return res.status(400).json({
@@ -710,11 +763,14 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // =========================
-    // PASSWORD VALIDATION
-    // =========================
+    // -----------------------------------------------------
+    // PASSWORD
+    // -----------------------------------------------------
 
-    if (!password || !confirmPassword) {
+    if (
+      !password ||
+      !confirmPassword
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -730,7 +786,9 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (password !== confirmPassword) {
+    if (
+      password !== confirmPassword
+    ) {
       return res.status(400).json({
         success: false,
         message:
@@ -738,9 +796,9 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // FIND USER
-    // =========================
+    // -----------------------------------------------------
 
     const user = await User.findOne({
       resetPasswordToken: token,
@@ -757,9 +815,9 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // =========================
+    // -----------------------------------------------------
     // HASH PASSWORD
-    // =========================
+    // -----------------------------------------------------
 
     const hashedPassword =
       await bcrypt.hash(
@@ -770,21 +828,14 @@ const resetPassword = async (req, res) => {
     user.password =
       hashedPassword;
 
-    // =========================
+    // -----------------------------------------------------
     // CLEAR RESET TOKEN
-    // =========================
+    // -----------------------------------------------------
 
-    user.resetPasswordToken =
-      null;
-
-    user.resetPasswordExpires =
-      null;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
 
     await user.save();
-
-    // =========================
-    // RESPONSE
-    // =========================
 
     return res.status(200).json({
       success: true,
@@ -805,9 +856,9 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// =========================
+// =========================================================
 // EXPORTS
-// =========================
+// =========================================================
 
 module.exports = {
   register,
