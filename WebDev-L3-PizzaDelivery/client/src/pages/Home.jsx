@@ -15,8 +15,8 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PizzaCard from "../components/PizzaCard";
+import api from "../services/api";
 
-const API_URL = "http://localhost:5000/api/pizzas";
 const CART_KEY = "pizzaCart";
 
 const categories = [
@@ -79,18 +79,13 @@ export default function Home() {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to fetch pizzas"
-        );
-      }
+      const { data } = await api.get("/pizzas");
 
       setPizzas(
-        Array.isArray(data.pizzas)
+        Array.isArray(data?.pizzas)
           ? data.pizzas
+          : Array.isArray(data)
+          ? data
           : []
       );
     } catch (error) {

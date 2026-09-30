@@ -27,6 +27,16 @@ const STATUS_MAP = {
 };
 
 // ==========================================
+// PAYMENT STATUS
+// ==========================================
+
+const ALLOWED_PAYMENT_STATUSES = [
+  "PENDING",
+  "PAID",
+  "FAILED",
+];
+
+// ==========================================
 // CREATE USER ORDER
 // POST /api/orders
 // ==========================================
@@ -82,10 +92,19 @@ const createOrder = async (req, res) => {
       });
     }
 
-    if (!["COD", "ONLINE"].includes(paymentMethod)) {
+    // ==========================================
+    // PAYMENT METHOD VALIDATION
+    // COD + MANUAL ONLY
+    // ==========================================
+
+    const normalizedPaymentMethod =
+      paymentMethod.toString().trim().toUpperCase();
+
+    if (!["COD", "MANUAL"].includes(normalizedPaymentMethod)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payment method.",
+        message:
+          "Invalid payment method. Allowed methods are COD or MANUAL.",
       });
     }
 
@@ -199,11 +218,14 @@ const createOrder = async (req, res) => {
     // ==========================================
     // PAYMENT STATUS
     // ==========================================
+    // COD     -> PENDING
+    // MANUAL  -> PENDING
+    //
+    // Admin will later change:
+    // PENDING -> PAID / FAILED
+    // ==========================================
 
-    const paymentStatus =
-      paymentMethod === "COD"
-        ? "PENDING"
-        : "PENDING";
+    const paymentStatus = "PENDING";
 
     // ==========================================
     // CREATE ORDER
@@ -225,7 +247,8 @@ const createOrder = async (req, res) => {
         pincode: shippingAddress.pincode.trim(),
       },
 
-      paymentMethod,
+      paymentMethod:
+        normalizedPaymentMethod,
 
       paymentStatus,
 
@@ -233,15 +256,19 @@ const createOrder = async (req, res) => {
 
       subtotal: Number(subtotal) || 0,
 
-      deliveryFee: Number(deliveryFee) || 0,
+      deliveryFee:
+        Number(deliveryFee) || 0,
 
-      discount: Number(discount) || 0,
+      discount:
+        Number(discount) || 0,
 
-      total: Number(total) || 0,
+      total:
+        Number(total) || 0,
     });
 
     // ==========================================
-    // ADMIN NOTIFICATION - NEW ORDER
+    // ADMIN NOTIFICATION
+    // NEW ORDER
     // ==========================================
 
     try {
@@ -253,8 +280,8 @@ const createOrder = async (req, res) => {
           .slice(-6)
           .toUpperCase()} has been placed by ${
           customer.name
-        }.`,
-        
+        }. Payment: ${normalizedPaymentMethod}.`,
+
         type: "order",
 
         orderId: newOrder._id,
@@ -262,8 +289,6 @@ const createOrder = async (req, res) => {
         read: false,
       });
     } catch (notificationError) {
-      // Notification failure should NOT
-      // fail the actual order.
       console.error(
         "New order notification error:",
         notificationError
@@ -277,7 +302,10 @@ const createOrder = async (req, res) => {
     const populatedOrder =
       await Order.findById(
         newOrder._id
-      ).populate("user", "name email");
+      ).populate(
+        "user",
+        "name email"
+      );
 
     // ==========================================
     // RESPONSE
@@ -286,7 +314,8 @@ const createOrder = async (req, res) => {
     return res.status(201).json({
       success: true,
 
-      message: "Order placed successfully.",
+      message:
+        "Order placed successfully.",
 
       order: populatedOrder,
 
@@ -301,10 +330,12 @@ const createOrder = async (req, res) => {
     return res.status(500).json({
       success: false,
 
-      message: "Failed to create order.",
+      message:
+        "Failed to create order.",
 
       error:
-        process.env.NODE_ENV === "development"
+        process.env.NODE_ENV ===
+        "development"
           ? error.message
           : undefined,
     });
@@ -324,7 +355,8 @@ const getUserOrders = async (req, res) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required.",
+        message:
+          "Authentication required.",
       });
     }
 
@@ -353,7 +385,8 @@ const getUserOrders = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch orders.",
+      message:
+        "Failed to fetch orders.",
     });
   }
 };
@@ -395,25 +428,30 @@ const cancelUserOrder = async (req, res) => {
     );
 
     console.log(
-      "user._id:",
-      req.user?._id
-    );
-
-    console.log(
       "================================="
     );
+
+    // ==========================================
+    // AUTHENTICATION
+    // ==========================================
 
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required.",
+        message:
+          "Authentication required.",
       });
     }
+
+    // ==========================================
+    // ORDER ID VALIDATION
+    // ==========================================
 
     if (!orderId) {
       return res.status(400).json({
         success: false,
-        message: "Order ID is required.",
+        message:
+          "Order ID is required.",
       });
     }
 
@@ -424,39 +462,34 @@ const cancelUserOrder = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid MongoDB order ID.",
+        message:
+          "Invalid MongoDB order ID.",
       });
     }
 
     // ==========================================
-    // FIND ORDER BY MONGODB ID
-    // THEN VERIFY OWNERSHIP
+    // FIND ORDER BY ID
     // ==========================================
 
     const orderById =
       await Order.findById(orderId);
 
-    console.log(
-      "ORDER BY ID:",
-      orderById
-    );
-
     if (!orderById) {
       return res.status(404).json({
         success: false,
-        message: "Order not found.",
+        message:
+          "Order not found.",
       });
     }
+
+    // ==========================================
+    // VERIFY OWNERSHIP
+    // ==========================================
 
     const order = await Order.findOne({
       _id: orderId,
       user: userId,
     });
-
-    console.log(
-      "ORDER WITH USER:",
-      order
-    );
 
     if (!order) {
       return res.status(403).json({
@@ -477,7 +510,6 @@ const cancelUserOrder = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-
         message:
           "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
       });
@@ -491,7 +523,6 @@ const cancelUserOrder = async (req, res) => {
       await Order.findOneAndUpdate(
         {
           _id: orderId,
-
           user: userId,
 
           orderStatus: {
@@ -504,7 +535,8 @@ const cancelUserOrder = async (req, res) => {
 
         {
           $set: {
-            orderStatus: "CANCELLED",
+            orderStatus:
+              "CANCELLED",
           },
         },
 
@@ -517,7 +549,6 @@ const cancelUserOrder = async (req, res) => {
     if (!cancelledOrder) {
       return res.status(400).json({
         success: false,
-
         message:
           "This order cannot be cancelled now. Orders can only be cancelled before preparation starts.",
       });
@@ -569,16 +600,15 @@ const cancelUserOrder = async (req, res) => {
           cancelledOrder.customer?.name ||
           "Customer"
         }.`,
-        
+
         type: "cancel",
 
-        orderId: cancelledOrder._id,
+        orderId:
+          cancelledOrder._id,
 
         read: false,
       });
     } catch (notificationError) {
-      // Notification failure should NOT
-      // fail the cancellation.
       console.error(
         "Order cancellation notification error:",
         notificationError
@@ -597,7 +627,9 @@ const cancelUserOrder = async (req, res) => {
           "user",
           "name email"
         )
-        .populate("items.product");
+        .populate(
+          "items.product"
+        );
 
     // ==========================================
     // RESPONSE
@@ -626,7 +658,8 @@ const cancelUserOrder = async (req, res) => {
         "Failed to cancel order.",
 
       error:
-        process.env.NODE_ENV === "development"
+        process.env.NODE_ENV ===
+        "development"
           ? error.message
           : undefined,
     });
@@ -641,7 +674,10 @@ const cancelUserOrder = async (req, res) => {
 const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate("user", "name email")
+      .populate(
+        "user",
+        "name email"
+      )
       .populate("items.product")
       .sort({
         createdAt: -1,
@@ -667,6 +703,10 @@ const getAllOrders = async (req, res) => {
           order.user?.email ||
           "customer@pizzahub.com",
 
+        phone:
+          order.customer?.phone ||
+          "",
+
         pizza:
           order.items
             ?.map(
@@ -683,6 +723,9 @@ const getAllOrders = async (req, res) => {
 
         paymentMethod:
           order.paymentMethod,
+
+        manualPayment:
+          order.manualPayment || {},
 
         status:
           STATUS_MAP[
@@ -706,7 +749,8 @@ const getAllOrders = async (req, res) => {
     return res.status(200).json({
       success: true,
 
-      count: formattedOrders.length,
+      count:
+        formattedOrders.length,
 
       data: formattedOrders,
     });
@@ -718,7 +762,9 @@ const getAllOrders = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to fetch orders.",
+
+      message:
+        "Failed to fetch orders.",
     });
   }
 };
@@ -738,12 +784,15 @@ const getOrderById = async (req, res) => {
           "user",
           "name email"
         )
-        .populate("items.product");
+        .populate(
+          "items.product"
+        );
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found.",
+        message:
+          "Order not found.",
       });
     }
 
@@ -775,7 +824,7 @@ const updateOrderStatus = async (
   res
 ) => {
   try {
-    let { status } = req.body;
+    const { status } = req.body;
 
     if (!status) {
       return res.status(400).json({
@@ -818,13 +867,11 @@ const updateOrderStatus = async (
         "OUT_FOR_DELIVERY",
 
       "Order Placed": "PLACED",
-
       "Order Received": "PLACED",
 
       Confirmed: "CONFIRMED",
 
       "In Kitchen": "PREPARING",
-
       Preparing: "PREPARING",
 
       "Sent to Delivery":
@@ -838,16 +885,13 @@ const updateOrderStatus = async (
       Cancelled: "CANCELLED",
 
       PLACED: "PLACED",
-
       CONFIRMED: "CONFIRMED",
-
       PREPARING: "PREPARING",
 
       OUT_FOR_DELIVERY:
         "OUT_FOR_DELIVERY",
 
       DELIVERED: "DELIVERED",
-
       CANCELLED: "CANCELLED",
     };
 
@@ -873,7 +917,6 @@ const updateOrderStatus = async (
     ) {
       return res.status(400).json({
         success: false,
-
         message: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(
           ", "
         )}`,
@@ -884,6 +927,18 @@ const updateOrderStatus = async (
     // FIND ORDER
     // ==========================================
 
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        req.params.id
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid order ID.",
+      });
+    }
+
     const order =
       await Order.findById(
         req.params.id
@@ -892,24 +947,25 @@ const updateOrderStatus = async (
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found.",
+        message:
+          "Order not found.",
       });
     }
 
     // ==========================================
-    // UPDATE STATUS
+    // UPDATE ORDER STATUS
     // ==========================================
 
     order.orderStatus =
       normalizedStatus;
 
-    if (
-      normalizedStatus ===
-      "DELIVERED"
-    ) {
-      order.paymentStatus =
-        "PAID";
-    }
+    // IMPORTANT:
+    // DELIVERED no longer automatically
+    // changes payment status to PAID.
+    //
+    // Payment is controlled separately
+    // by admin using updatePaymentStatus().
+    // ==========================================
 
     const updatedOrder =
       await order.save();
@@ -926,7 +982,9 @@ const updateOrderStatus = async (
           "user",
           "name email"
         )
-        .populate("items.product");
+        .populate(
+          "items.product"
+        );
 
     // ==========================================
     // RESPONSE
@@ -955,14 +1013,182 @@ const updateOrderStatus = async (
 };
 
 // ==========================================
+// ADMIN: UPDATE PAYMENT STATUS
+// PATCH /api/admin/orders/:id/payment-status
+// ==========================================
+
+const updatePaymentStatus = async (
+  req,
+  res
+) => {
+  try {
+    const { paymentStatus } =
+      req.body;
+
+    if (!paymentStatus) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Payment status is required.",
+      });
+    }
+
+    // ==========================================
+    // NORMALIZE PAYMENT STATUS
+    // ==========================================
+
+    const normalizedPaymentStatus =
+      paymentStatus
+        .toString()
+        .trim()
+        .toUpperCase();
+
+    if (
+      !ALLOWED_PAYMENT_STATUSES.includes(
+        normalizedPaymentStatus
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message: `Invalid payment status. Allowed values: ${ALLOWED_PAYMENT_STATUSES.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // ==========================================
+    // VALIDATE ORDER ID
+    // ==========================================
+
+    if (
+      !mongoose.Types.ObjectId.isValid(
+        req.params.id
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+
+        message:
+          "Invalid order ID.",
+      });
+    }
+
+    // ==========================================
+    // FIND ORDER
+    // ==========================================
+
+    const order =
+      await Order.findById(
+        req.params.id
+      );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+
+        message:
+          "Order not found.",
+      });
+    }
+
+    // ==========================================
+    // UPDATE PAYMENT STATUS
+    // ==========================================
+
+    order.paymentStatus =
+      normalizedPaymentStatus;
+
+    const updatedOrder =
+      await order.save();
+
+    // ==========================================
+    // POPULATE UPDATED ORDER
+    // ==========================================
+
+    const populated =
+      await Order.findById(
+        updatedOrder._id
+      )
+        .populate(
+          "user",
+          "name email"
+        )
+        .populate(
+          "items.product"
+        );
+
+    // ==========================================
+    // NOTIFICATION
+    // ==========================================
+
+    try {
+      await Notification.create({
+        title:
+          "Payment Status Updated",
+
+        message: `Payment status for order #${updatedOrder._id
+          .toString()
+          .slice(-6)
+          .toUpperCase()} changed to ${normalizedPaymentStatus}.`,
+
+        type: "payment",
+
+        orderId:
+          updatedOrder._id,
+
+        read: false,
+      });
+    } catch (notificationError) {
+      console.error(
+        "Payment notification error:",
+        notificationError
+      );
+    }
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(200).json({
+      success: true,
+
+      message: `Payment status updated to "${normalizedPaymentStatus}".`,
+
+      data: populated,
+    });
+  } catch (error) {
+    console.error(
+      "Update payment status error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to update payment status.",
+    });
+  }
+};
+
+// ==========================================
 // EXPORTS
 // ==========================================
 
 module.exports = {
   createOrder,
+
   getUserOrders,
+
   cancelUserOrder,
+
   getAllOrders,
+
   getOrderById,
+
   updateOrderStatus,
+
+  updatePaymentStatus,
 };

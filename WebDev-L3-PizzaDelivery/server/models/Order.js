@@ -104,7 +104,7 @@ const orderSchema = new mongoose.Schema(
     // ==========================================
     paymentMethod: {
       type: String,
-      enum: ["COD", "ONLINE"],
+      enum: ["COD", "MANUAL"],
       default: "COD",
     },
 
@@ -114,20 +114,37 @@ const orderSchema = new mongoose.Schema(
       default: "PENDING",
     },
 
-    razorpayOrderId: {
-      type: String,
-      default: null,
+    // ==========================================
+    // MANUAL PAYMENT DETAILS
+    // ==========================================
+    manualPayment: {
+      transactionId: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      paymentDate: {
+        type: Date,
+        default: null,
+      },
+      note: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      submittedAt: {
+        type: Date,
+        default: null,
+      },
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+      verifiedBy: {
+        type: String,
+        default: null,
+      },
     },
-
-    razorpayPaymentId: {
-      type: String,
-      default: null,
-    },
-
-    razorpaySignature: {
-      type: String,
-      default: null,
-    },    
 
     // ==========================================
     // ORDER STATUS

@@ -17,9 +17,8 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PizzaCard from "../components/PizzaCard";
-import { getUserOrders } from "../services/api";
+import api, { getUserOrders } from "../services/api";
 
-const API_URL = "http://localhost:5000/api/pizzas";
 const CART_KEY = "pizzaCart";
 
 const CATEGORIES = [
@@ -334,13 +333,7 @@ const Dashboard = () => {
       setLoading(true);
       setPizzaError("");
 
-      const response = await fetch(API_URL);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch pizzas");
-      }
-
-      const data = await response.json();
+      const { data } = await api.get("/pizzas");
 
       const pizzaList = Array.isArray(data)
         ? data

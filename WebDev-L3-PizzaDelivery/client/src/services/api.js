@@ -679,13 +679,15 @@ export const cancelUserOrder = (
 };
 
 // =========================================================
-// RAZORPAY PAYMENT APIs
+// MANUAL PAYMENT APIs
 // =========================================================
 
-// Create Razorpay payment order
-export const createPaymentOrder = (
-  data
-) => {
+// Get manual payment config/instructions
+export const getPaymentConfig = () =>
+  api.get("/payment/config");
+
+// Submit manual payment details
+export const submitManualPayment = (data) => {
   if (
     !data ||
     typeof data !== "object"
@@ -697,53 +699,92 @@ export const createPaymentOrder = (
     );
   }
 
+  if (!data.orderId) {
+    return Promise.reject(
+      new Error(
+        "Order ID is required"
+      )
+    );
+  }
+
   if (
-    !data.amount ||
-    Number(data.amount) <= 0
+    !data.transactionId ||
+    !data.transactionId.trim()
   ) {
     return Promise.reject(
       new Error(
-        "Valid payment amount is required"
+        "Transaction ID is required"
       )
     );
   }
 
   return api.post(
-    "/payment/create-order",
+    "/payment/manual",
     data
   );
 };
 
-// Verify Razorpay payment
-export const verifyPayment = (
-  data
+// Get logged-in user's payments
+export const getMyPayments = () =>
+  api.get("/payment/my-payments");
+
+// =========================================================
+// ADMIN PAYMENT APIs
+// =========================================================
+
+// Get admin payment stats
+export const getAdminPaymentStats = () =>
+  api.get("/payment/admin/stats");
+
+// Get all payments (admin)
+export const getAdminPayments = () =>
+  api.get("/payment/admin");
+
+// Get single payment (admin)
+export const getAdminPaymentById = (
+  id
 ) => {
-  if (
-    !data ||
-    typeof data !== "object"
-  ) {
+  if (!id) {
     return Promise.reject(
       new Error(
-        "Payment verification data is required"
+        "Payment ID is required"
       )
     );
   }
 
-  if (
-    !data.razorpay_order_id ||
-    !data.razorpay_payment_id ||
-    !data.razorpay_signature
-  ) {
+  return api.get(
+    `/payment/admin/${encodeURIComponent(
+      id
+    )}`
+  );
+};
+
+// Update payment status (admin)
+export const updateAdminPaymentStatus = (
+  id,
+  paymentStatus
+) => {
+  if (!id) {
     return Promise.reject(
       new Error(
-        "Incomplete payment verification data"
+        "Payment ID is required"
       )
     );
   }
 
-  return api.post(
-    "/payment/verify",
-    data
+  if (!paymentStatus) {
+    return Promise.reject(
+      new Error(
+        "Payment status is required"
+      )
+    );
+  }
+
+  return api.patch(
+    `/payment/admin/${encodeURIComponent(
+      id
+    )}/status`,
+    { paymentStatus }
   );
 };
 

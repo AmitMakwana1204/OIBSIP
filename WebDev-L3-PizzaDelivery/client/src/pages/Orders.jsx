@@ -959,11 +959,23 @@ export default function Orders() {
                             "COD"}
                         </p>
 
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className={`text-xs font-bold mt-1 ${
+                          latestOrder.paymentStatus === "PAID"
+                            ? "text-green-600"
+                            : latestOrder.paymentStatus === "FAILED"
+                            ? "text-red-600"
+                            : "text-orange-600"
+                        }`}>
                           Status:{" "}
                           {latestOrder.paymentStatus ||
                             "PENDING"}
                         </p>
+
+                        {latestOrder.manualPayment?.transactionId && (
+                          <p className="text-xs text-gray-500 mt-1 font-mono">
+                            Txn: {latestOrder.manualPayment.transactionId}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1119,7 +1131,13 @@ export default function Orders() {
                         </p>
                       </div>
 
-                      <span className="px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+                        latestOrder.paymentStatus === "PAID"
+                          ? "bg-green-500/20 text-green-400"
+                          : latestOrder.paymentStatus === "FAILED"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-orange-500/20 text-orange-400"
+                      }`}>
                         {latestOrder.paymentStatus ||
                           "PENDING"}{" "}
                         (
@@ -1340,6 +1358,15 @@ export default function Orders() {
                               }
                             />
                           </div>
+
+                          {ord.manualPayment?.transactionId && (
+                            <div className="mt-3 grid sm:grid-cols-2 gap-4">
+                              <InfoBox
+                                label="Transaction ID"
+                                value={ord.manualPayment.transactionId}
+                              />
+                            </div>
+                          )}
 
                           <div className="mt-4 rounded-2xl bg-white border border-gray-100 p-4">
                             <p className="text-xs font-black uppercase tracking-wider text-gray-400">

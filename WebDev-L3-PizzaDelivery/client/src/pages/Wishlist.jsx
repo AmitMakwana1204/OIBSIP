@@ -9,9 +9,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import PizzaCard from "../components/PizzaCard";
-
-const API_URL =
-  "http://localhost:5000/api/pizzas";
+import api from "../services/api";
 
 const WISHLIST_PREFIX = "pizzaWishlist_";
 
@@ -92,18 +90,7 @@ export default function Wishlist({
         return;
       }
 
-      const response =
-        await fetch(API_URL);
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message ||
-            "Failed to load pizzas"
-        );
-      }
+      const { data } = await api.get("/pizzas");
 
       const allPizzas =
         Array.isArray(data)

@@ -6,7 +6,14 @@ const {
   markAllNotificationsRead,
 } = require("../controllers/notificationController");
 
+const {
+  adminProtect,
+} = require("../middleware/adminMiddleware");
+
 const router = express.Router();
+
+// Protected with Admin Authentication
+router.use(adminProtect);
 
 // Get notifications
 router.get(

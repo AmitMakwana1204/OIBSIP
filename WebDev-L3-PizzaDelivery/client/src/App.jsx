@@ -44,6 +44,7 @@ import Inventory from "./pages/admin/Inventory";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminIngredients from "./pages/admin/AdminIngredients";
 import AdminPizzas from "./pages/admin/AdminPizzas";
+import AdminPayments from "./pages/admin/AdminPayments";
 
 function App() {
   return (
@@ -200,6 +201,15 @@ function App() {
             }
           />
 
+          <Route
+            path="/order-success/:id"
+            element={
+              <ProtectedRoute>
+                <OrderSuccess />
+              </ProtectedRoute>
+            }
+          />
+
           {/* =================================================
               ADMIN ROUTES
           ================================================== */}
@@ -266,6 +276,16 @@ function App() {
             }
           />
 
+          {/* Admin Payments */}
+
+          <Route
+            path="/admin/payments"
+            element={
+              <AdminProtectedRoute>
+                <AdminPayments />
+              </AdminProtectedRoute>
+            }
+          />
           {/* =================================================
               404 / UNKNOWN ROUTE
           ================================================== */}

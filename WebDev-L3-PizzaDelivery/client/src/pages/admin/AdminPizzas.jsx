@@ -17,7 +17,7 @@ import {
   Pizza as PizzaIcon,
 } from "lucide-react";
 
-const API_URL = "http://localhost:5000/api/pizzas";
+import api from "../../services/api";
 
 const CATEGORIES = [
   "Classic",
@@ -90,22 +90,15 @@ export default function AdminPizzas() {
 
       setError("");
 
-      const response = await fetch(API_URL);
+      const { data } = await api.get("/pizzas");
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to load pizzas."
-        );
-      }
-
-      setPizzas(data.pizzas || []);
+      setPizzas(data?.pizzas || data || []);
     } catch (err) {
       console.error("Fetch pizzas error:", err);
 
       setError(
-        err.message ||
+        err.response?.data?.message ||
+          err.message ||
           "Failed to load pizzas from server."
       );
     } finally {
@@ -348,21 +341,7 @@ export default function AdminPizzas() {
         isAvailable: formData.isAvailable,
       };
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to create pizza."
-        );
-      }
+      await api.post("/pizzas", payload);
 
       setIsAddModalOpen(false);
 
@@ -380,7 +359,8 @@ export default function AdminPizzas() {
       );
 
       showNotification(
-        err.message ||
+        err.response?.data?.message ||
+          err.message ||
           "Failed to add pizza.",
         "error"
       );
@@ -420,25 +400,10 @@ export default function AdminPizzas() {
         isAvailable: formData.isAvailable,
       };
 
-      const response = await fetch(
-        `${API_URL}/${activePizza._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
+      await api.put(
+        `/pizzas/${activePizza._id}`,
+        payload
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to update pizza."
-        );
-      }
 
       setIsEditModalOpen(false);
 
@@ -456,7 +421,8 @@ export default function AdminPizzas() {
       );
 
       showNotification(
-        err.message ||
+        err.response?.data?.message ||
+          err.message ||
           "Failed to update pizza.",
         "error"
       );
@@ -475,21 +441,9 @@ export default function AdminPizzas() {
     try {
       setSubmitting(true);
 
-      const response = await fetch(
-        `${API_URL}/${activePizza._id}`,
-        {
-          method: "DELETE",
-        }
+      await api.delete(
+        `/pizzas/${activePizza._id}`
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to delete pizza."
-        );
-      }
 
       setIsDeleteModalOpen(false);
 
@@ -507,7 +461,8 @@ export default function AdminPizzas() {
       );
 
       showNotification(
-        err.message ||
+        err.response?.data?.message ||
+          err.message ||
           "Failed to delete pizza.",
         "error"
       );

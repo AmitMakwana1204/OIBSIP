@@ -233,6 +233,40 @@ const getDashboardStats = async (req, res) => {
       .limit(6)
       .select("name stock unit threshold category");
 
+    // 9. Payment statistics
+    const paymentStatusCounts = await Order.aggregate([
+      {
+        $group: {
+          _id: "$paymentStatus",
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$total" },
+        },
+      },
+    ]);
+
+    const paymentStats = {
+      totalPayments: totalOrders,
+      pendingPayments: 0,
+      paidPayments: 0,
+      failedPayments: 0,
+      pendingAmount: 0,
+      totalPaidAmount: 0,
+      failedAmount: 0,
+    };
+
+    paymentStatusCounts.forEach((ps) => {
+      if (ps._id === "PENDING") {
+        paymentStats.pendingPayments = ps.count;
+        paymentStats.pendingAmount = ps.totalAmount;
+      } else if (ps._id === "PAID") {
+        paymentStats.paidPayments = ps.count;
+        paymentStats.totalPaidAmount = ps.totalAmount;
+      } else if (ps._id === "FAILED") {
+        paymentStats.failedPayments = ps.count;
+        paymentStats.failedAmount = ps.totalAmount;
+      }
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -244,6 +278,7 @@ const getDashboardStats = async (req, res) => {
         salesOverview,
         statusCounts: statusCountsMap,
         lowStockAlerts,
+        paymentStats,
       },
     });
   } catch (error) {

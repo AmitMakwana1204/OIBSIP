@@ -175,7 +175,7 @@ const register = async (req, res) => {
       console.log(
         `🔗 Verification Link for ${user.email}: ${
           process.env.CLIENT_URL ||
-          "http://localhost:5173"
+          "https://your-frontend.vercel.app"
         }/verify-email?token=${verificationToken}`
       );
     }
@@ -714,7 +714,7 @@ const forgotPassword = async (req, res) => {
           user.email
         }: ${
           process.env.CLIENT_URL ||
-          "http://localhost:5173"
+          "https://your-frontend.vercel.app"
         }/reset-password/${resetToken}`
       );
     }

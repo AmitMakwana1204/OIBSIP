@@ -3,30 +3,60 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createPaymentOrder,
-  verifyPayment,
+  getPaymentConfig,
+  submitManualPayment,
+  getMyPayments,
+  getAdminPayments,
+  getAdminPaymentById,
+  updateAdminPaymentStatus,
+  getPaymentStats,
 } = require("../controllers/paymentController");
 
 const { protect } = require("../middleware/authMiddleware");
+const { adminProtect } = require("../middleware/adminMiddleware");
 
 // ==========================================
-// CREATE RAZORPAY ORDER
-// POST /api/payment/create-order
+// PUBLIC
 // ==========================================
-router.post(
-  "/create-order",
-  protect,
-  createPaymentOrder
-);
+
+// Get manual payment configuration / instructions
+// GET /api/payment/config
+router.get("/config", getPaymentConfig);
 
 // ==========================================
-// VERIFY RAZORPAY PAYMENT
-// POST /api/payment/verify
+// USER ROUTES (protected by user token)
 // ==========================================
-router.post(
-  "/verify",
-  protect,
-  verifyPayment
+
+// Submit manual payment details
+// POST /api/payment/manual
+router.post("/manual", protect, submitManualPayment);
+
+// Get logged-in user's payments
+// GET /api/payment/my-payments
+router.get("/my-payments", protect, getMyPayments);
+
+// ==========================================
+// ADMIN ROUTES (protected by admin token)
+// ==========================================
+
+// Get payment stats
+// GET /api/payment/admin/stats
+router.get("/admin/stats", adminProtect, getPaymentStats);
+
+// Get all payments
+// GET /api/payment/admin
+router.get("/admin", adminProtect, getAdminPayments);
+
+// Get single payment
+// GET /api/payment/admin/:id
+router.get("/admin/:id", adminProtect, getAdminPaymentById);
+
+// Update payment status
+// PATCH /api/payment/admin/:id/status
+router.patch(
+  "/admin/:id/status",
+  adminProtect,
+  updateAdminPaymentStatus
 );
 
 module.exports = router;
