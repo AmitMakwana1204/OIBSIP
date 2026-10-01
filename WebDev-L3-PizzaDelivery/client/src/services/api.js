@@ -7,7 +7,9 @@ import axios from "axios";
 const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_URL ||
-    "http://localhost:5000/api",
+    (import.meta.env.PROD
+      ? "https://oibsip-4m86.onrender.com/api"
+      : "http://localhost:5000/api"),
 
   headers: {
     "Content-Type": "application/json",
@@ -211,7 +213,16 @@ api.interceptors.response.use(
 export const registerUser = (data) =>
   api.post(
     "/auth/register",
-    data
+    data,
+    { timeout: 120000 }
+  );
+
+// Resend verification email
+export const resendVerificationEmail = (data) =>
+  api.post(
+    "/auth/resend-verification",
+    data,
+    { timeout: 60000 }
   );
 
 // Login user

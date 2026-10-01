@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Pizza,
   User,
@@ -18,6 +18,7 @@ import {
 import { registerUser } from "../services/api";
 
 export default function Register() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -73,7 +74,7 @@ export default function Register() {
 
       setSuccessMessage(
         response.data.message ||
-        "Registration successful! Please check your email to verify your account."
+          "Account created successfully! Redirecting to login..."
       );
 
       // Clear form
@@ -84,10 +85,15 @@ export default function Register() {
         confirmPassword: "",
       });
       setAgree(false);
+
+      // Smooth redirect to login page
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
     } catch (err) {
       const message =
         err.response?.data?.message ||
-        "Registration failed. Please try again.";
+        "Unable to complete registration. Please try again.";
       setError(message);
     } finally {
       setLoading(false);
@@ -317,9 +323,17 @@ export default function Register() {
                   size={19}
                   className="text-green-500 shrink-0 mt-0.5"
                 />
-                <p className="text-sm text-green-700 font-medium">
-                  {successMessage}
-                </p>
+                <div>
+                  <p className="text-sm text-green-700 font-medium">
+                    {successMessage}
+                  </p>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center gap-1 text-xs text-green-800 font-bold underline mt-1 hover:text-green-950"
+                  >
+                    Go to Login now →
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -331,9 +345,19 @@ export default function Register() {
                   size={19}
                   className="text-red-500 shrink-0 mt-0.5"
                 />
-                <p className="text-sm text-red-600 font-medium">
-                  {error}
-                </p>
+                <div>
+                  <p className="text-sm text-red-600 font-medium">
+                    {error}
+                  </p>
+                  {error.toLowerCase().includes("already registered") && (
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1 text-xs text-red-700 font-bold underline mt-1 hover:text-red-900"
+                    >
+                      Click here to Login →
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 

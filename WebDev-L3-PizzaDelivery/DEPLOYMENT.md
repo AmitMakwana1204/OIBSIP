@@ -27,16 +27,16 @@ This guide provides end-to-end instructions for deploying the **PizzaHub** full-
 | `NODE_ENV` | Application environment | `production` |
 | `MONGO_URI` | MongoDB Atlas connection string | `mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/pizzahub?retryWrites=true&w=majority` |
 | `JWT_SECRET` | Secret key for signing user/admin JWTs | `a_very_long_secure_random_string_64_chars` |
-| `CLIENT_URL` | Deployed Frontend URL (no trailing slash) | `https://pizzahub.vercel.app` |
+| `CLIENT_URL` | Deployed Frontend URL (no trailing slash) | `https://oibsip-seven-rho.vercel.app` |
 | `SERVER_URL` | Deployed Backend URL (no trailing slash) | `https://pizzahub-api.onrender.com` |
 | `EMAIL_USER` | Gmail address for sending notifications | `your-email@gmail.com` |
-| `EMAIL_PASS` | Gmail 16-character App Password | `abcd efgh ijkl mnop` |
+| `EMAIL_PASS` | Gmail 16-character App Password (spaces accepted) | Set as a Render secret |
 
 ### 2. Frontend (`client` on Vercel)
 
 | Variable Name | Description | Example / Format |
 |---|---|---|
-| `VITE_API_URL` | Full backend API URL with `/api` path | `https://pizzahub-api.onrender.com/api` |
+| `VITE_API_URL` | Full backend API URL with `/api` path | `https://oibsip-4m86.onrender.com/api` |
 
 ---
 
@@ -109,15 +109,15 @@ This guide provides end-to-end instructions for deploying the **PizzaHub** full-
    NODE_ENV = production
    MONGO_URI = mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/pizzahub?retryWrites=true&w=majority
    JWT_SECRET = <your_generated_secret_string>
-   CLIENT_URL = https://your-frontend.vercel.app  (Temporary or actual Vercel URL)
-   SERVER_URL = https://pizzahub-api.onrender.com  (Render provided URL)
+   CLIENT_URL = https://oibsip-seven-rho.vercel.app
+   SERVER_URL = https://oibsip-4m86.onrender.com
    EMAIL_USER = your-email@gmail.com
-   EMAIL_PASS = your-16-char-app-password
+   EMAIL_PASS = your-16-char-app-password (Gmail App Password; keep secret)
    ```
 5. **Deploy:** Click **Create Web Service**.
 6. **Verify Backend Deployment:**
    - Once deployed, copy your Render URL: e.g. `https://pizzahub-api.onrender.com`
-   - Open in browser: `https://pizzahub-api.onrender.com/api/health`
+   - Open in browser: `https://oibsip-4m86.onrender.com/api/health`
    - Expected output:
      ```json
      {
@@ -141,7 +141,7 @@ This guide provides end-to-end instructions for deploying the **PizzaHub** full-
    - **Install Command:** `npm install`
 5. **Add Environment Variable:**
    - Name: `VITE_API_URL`
-   - Value: `https://pizzahub-api.onrender.com/api` *(Your Render backend URL + `/api`)*
+   - Value: `https://oibsip-4m86.onrender.com/api` *(Your Render backend URL + `/api`)*
 6. **Deploy:** Click **Deploy**.
 7. Once deployed, note down your production Vercel URL (e.g. `https://pizzahub.vercel.app`).
 
@@ -153,7 +153,7 @@ This guide provides end-to-end instructions for deploying the **PizzaHub** full-
 2. Open your backend service (`pizzahub-api`) > **Environment Variables**.
 3. Update `CLIENT_URL` with your final Vercel URL:
    ```
-   CLIENT_URL = https://pizzahub.vercel.app
+   CLIENT_URL = https://oibsip-seven-rho.vercel.app
    ```
 4. Click **Save Changes** (Render will automatically re-deploy with updated environment variables).
 

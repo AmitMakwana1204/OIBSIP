@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 const {
-  sendVerificationEmail,
+  sendWelcomeEmail,
   sendPasswordResetEmail,
 } = require("../utils/sendEmail");
 
@@ -23,7 +23,7 @@ const getUserResponse = (user) => {
     city: user.city || "",
     state: user.state || "",
     pincode: user.pincode || "",
-    isVerified: user.isVerified,
+    isVerified: user.isVerified ?? true,
   };
 };
 
@@ -33,6 +33,9 @@ const getUserResponse = (user) => {
 // =========================================================
 
 const register = async (req, res) => {
+  const duplicateEmailMessage =
+    "Email is already registered. Please login or use forgot password.";
+
   try {
     const {
       name,
@@ -99,98 +102,85 @@ const register = async (req, res) => {
     }
 
     // -----------------------------------------------------
-    // CHECK EXISTING USER
+    // CHECK EXISTING USER (Fast indexed query with lean _id)
     // -----------------------------------------------------
 
     const existingUser = await User.findOne({
       email: normalizedEmail,
-    });
+    })
+      .select("_id")
+      .lean();
 
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message:
-          "An account with this email already exists",
+        message: duplicateEmailMessage,
       });
     }
 
     // -----------------------------------------------------
-    // HASH PASSWORD
+    // HASH PASSWORD (Optimized bcrypt cost 10)
     // -----------------------------------------------------
 
     const hashedPassword = await bcrypt.hash(
       password,
-      12
+      10
     );
 
     // -----------------------------------------------------
-    // VERIFICATION TOKEN
-    // -----------------------------------------------------
-
-    const verificationToken = crypto
-      .randomBytes(32)
-      .toString("hex");
-
-    const verificationTokenExpires = new Date(
-      Date.now() + 15 * 60 * 1000
-    );
-
-    // -----------------------------------------------------
-    // CREATE USER
+    // CREATE USER IN MONGODB (isVerified: true)
     // -----------------------------------------------------
 
     const user = await User.create({
       name: normalizedName,
       email: normalizedEmail,
       password: hashedPassword,
-
       phone: "",
       address: "",
       city: "",
       state: "",
       pincode: "",
-
-      isVerified: false,
-
-      verificationToken,
-      verificationTokenExpires,
+      isVerified: true,
     });
 
     // -----------------------------------------------------
-    // SEND VERIFICATION EMAIL
+    // GENERATE JWT TOKEN FOR INSTANT LOGIN
     // -----------------------------------------------------
 
-    try {
-      await sendVerificationEmail(
-        user.email,
-        user.name,
-        verificationToken
-      );
-    } catch (emailError) {
-      console.warn(
-        "⚠️ Verification email failed:",
-        emailError.message
-      );
-
-      console.log(
-        `🔗 Verification Link for ${user.email}: ${
-          process.env.CLIENT_URL ||
-          "https://your-frontend.vercel.app"
-        }/verify-email?token=${verificationToken}`
+    let token = null;
+    if (process.env.JWT_SECRET) {
+      token = jwt.sign(
+        {
+          id: user._id,
+          email: user.email,
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
       );
     }
 
     // -----------------------------------------------------
-    // RESPONSE
+    // IMMEDIATE RESPONSE (FASTEST POSSIBLE REGISTRATION)
     // -----------------------------------------------------
 
     return res.status(201).json({
       success: true,
-      message:
-        "Registration successful! Please check your email to verify your account.",
+      message: "Registration successful! You can now login.",
+      token,
+      user: getUserResponse(user),
     });
   } catch (error) {
-    console.error("Register Error:", error);
+    console.error("Registration error:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Email is already registered. Please login or use forgot password.",
+      });
+    }
 
     return res.status(500).json({
       success: false,
@@ -201,64 +191,64 @@ const register = async (req, res) => {
 };
 
 // =========================================================
+// RESEND VERIFICATION EMAIL
+// POST /api/auth/resend-verification
+// =========================================================
+
+const resendVerification = async (req, res) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "Welcome email sent if the account exists.",
+      });
+    }
+
+    // Respond immediately to client
+    res.status(200).json({
+      success: true,
+      message: "Welcome email sent successfully. Please check your inbox.",
+    });
+
+    // Send email asynchronously in background
+    setImmediate(() => {
+      sendWelcomeEmail(
+        user.email,
+        user.name
+      ).catch((emailError) => {
+        console.error("Async welcome email error:", emailError);
+      });
+    });
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to send the email. Please try again later.",
+    });
+  }
+};
+
+// =========================================================
 // VERIFY EMAIL
 // GET /api/auth/verify-email?token=...
 // =========================================================
 
 const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.query;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: "Verification token is required",
-      });
-    }
-
-    // -----------------------------------------------------
-    // FIND USER
-    // -----------------------------------------------------
-
-    const user = await User.findOne({
-      verificationToken: token,
-      verificationTokenExpires: {
-        $gt: new Date(),
-      },
-    });
-
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Verification link is invalid or has expired.",
-      });
-    }
-
-    // -----------------------------------------------------
-    // VERIFY USER
-    // -----------------------------------------------------
-
-    user.isVerified = true;
-    user.verificationToken = null;
-    user.verificationTokenExpires = null;
-
-    await user.save();
-
-    return res.status(200).json({
-      success: true,
-      message:
-        "Email verified successfully! You can now log in.",
-    });
-  } catch (error) {
-    console.error("Verify Email Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Server error during email verification",
-    });
-  }
+  return res.status(200).json({
+    success: true,
+    message: "Email is already active! You can log in.",
+  });
 };
 
 // =========================================================
@@ -328,18 +318,6 @@ const login = async (req, res) => {
         success: false,
         message:
           "Invalid email or password",
-      });
-    }
-
-    // -----------------------------------------------------
-    // EMAIL VERIFICATION CHECK
-    // -----------------------------------------------------
-
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Please verify your email before logging in. Check your inbox for the verification link.",
       });
     }
 
@@ -605,13 +583,13 @@ const changePassword = async (req, res) => {
     }
 
     // -----------------------------------------------------
-    // HASH NEW PASSWORD
+    // HASH NEW PASSWORD (Cost 10)
     // -----------------------------------------------------
 
     const hashedPassword =
       await bcrypt.hash(
         newPassword,
-        12
+        10
       );
 
     user.password = hashedPassword;
@@ -693,35 +671,21 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    // -----------------------------------------------------
-    // SEND RESET EMAIL
-    // -----------------------------------------------------
+    // Respond immediately to client
+    res.status(200).json({
+      success: true,
+      message: genericMessage,
+    });
 
-    try {
-      await sendPasswordResetEmail(
+    // Send reset email asynchronously in background
+    setImmediate(() => {
+      sendPasswordResetEmail(
         user.email,
         user.name,
         resetToken
-      );
-    } catch (emailError) {
-      console.warn(
-        "⚠️ Password reset email failed:",
-        emailError.message
-      );
-
-      console.log(
-        `🔗 Password Reset Link for ${
-          user.email
-        }: ${
-          process.env.CLIENT_URL ||
-          "https://your-frontend.vercel.app"
-        }/reset-password/${resetToken}`
-      );
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: genericMessage,
+      ).catch((emailError) => {
+        console.error("Async password reset email error:", emailError);
+      });
     });
   } catch (error) {
     console.error(
@@ -816,13 +780,13 @@ const resetPassword = async (req, res) => {
     }
 
     // -----------------------------------------------------
-    // HASH PASSWORD
+    // HASH PASSWORD (Cost 10)
     // -----------------------------------------------------
 
     const hashedPassword =
       await bcrypt.hash(
         password,
-        12
+        10
       );
 
     user.password =
@@ -862,6 +826,7 @@ const resetPassword = async (req, res) => {
 
 module.exports = {
   register,
+  resendVerification,
   verifyEmail,
   login,
   getMe,
