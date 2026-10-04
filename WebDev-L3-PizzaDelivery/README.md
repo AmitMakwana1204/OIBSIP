@@ -257,8 +257,6 @@ Full Stack Web Developer
 
 **Tech:** React.js • Node.js • Express.js • MongoDB • JavaScript • Tailwind CSS
 
----
-
 ## 📄 License
 
 ISC License
