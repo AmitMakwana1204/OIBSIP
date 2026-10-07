@@ -21,6 +21,7 @@ async function request(url, options = {}) {
   return { status: res.status, data };
 }
 
+
 async function runTests() {
   console.log("==========================================");
   console.log("🚀 STARTING PIZZAHUB ADMIN AUTOMATED TESTS");
