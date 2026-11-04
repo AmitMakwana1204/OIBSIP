@@ -204,7 +204,7 @@ Database → MongoDB Atlas
 
 ### Live Demo
 
-> oibsip-seven-rho.vercel.app
+https://oibsip-seven-rho.vercel.app/
 
 ---
 
