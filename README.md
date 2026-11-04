@@ -204,7 +204,7 @@ Database → MongoDB Atlas
 
 ### Live Demo
 
-> Add your actual deployed frontend URL here.
+> oibsip-seven-rho.vercel.app
 
 ---
 
